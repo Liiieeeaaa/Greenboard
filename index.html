@@ -40,51 +40,120 @@
 
 <main class="main">
 
-  <!-- HIER KOMMT DER GESAMTE HTML-INHALT REIN -->
-  <!-- ALSO ALLES AUS DEM BODY -->
-  <!-- OHNE <script> UND OHNE <style> -->
+  <!-- ═══════════════ RANGLISTE ═══════════════ -->
+  <div id="tab-rangliste" class="tab-content active">
 
-</main>
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Gesamtpunkte</div>
+        <div class="metric-value" id="mTotal">–</div>
+        <div class="metric-sub" id="mTotalSub">Noch keine Daten</div>
+        <div class="metric-icon">★</div>
+      </div>
 
-<!-- ADD TIP MODAL -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
+      <div class="metric-card">
+        <div class="metric-label">Teilnehmende</div>
+        <div class="metric-value" id="mPeople">–</div>
+        <div class="metric-sub">Mitarbeitende</div>
+        <div class="metric-icon">👥</div>
+      </div>
 
-    <div class="modal-title">💡 Neuen Tipp hinzufügen</div>
+      <div class="metric-card">
+        <div class="metric-label">CO₂ gespart</div>
+        <div class="metric-value" id="mCO2">–<span>kg</span></div>
+        <div class="metric-sub">geschätzter Wert</div>
+        <div class="metric-icon">🌱</div>
+      </div>
 
-    <div class="form-group">
-      <label class="form-label">Kategorie</label>
-
-      <select class="form-select" id="tipCat">
-        <option value="papier">🗒️ Papier</option>
-        <option value="energie">⚡ Energie</option>
-        <option value="mobilitaet">🚗 Mobilität</option>
-        <option value="allgemein">🌿 Allgemein</option>
-      </select>
+      <div class="metric-card gold">
+        <div class="metric-label">Führende Abteilung</div>
+        <div class="metric-value" id="mLeader" style="font-size:18px;">–</div>
+        <div class="metric-sub" id="mLeaderSub">–</div>
+        <div class="metric-icon">🏆</div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Emoji / Icon</label>
-      <input class="form-input" id="tipIcon" placeholder="z.B. 💡 oder 🌱" maxlength="4">
+    <div class="two-col">
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏆 Rangliste Abteilungen</div>
+          <div class="panel-badge" id="rankBadge">0 Abteilungen</div>
+        </div>
+
+        <div class="panel-body">
+          <div class="leaderboard" id="leaderboard">
+            <div class="empty-state">
+              <div class="empty-state-icon">📊</div>
+              <div class="empty-state-text">Bitte Excel-Datei hochladen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Punkte pro Abteilung</div>
+          </div>
+
+          <div class="panel-body">
+            <div class="chart-container">
+              <canvas id="deptChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Wochenvergleich</div>
+            <div class="week-tabs" id="weekTabs"></div>
+          </div>
+
+          <div class="panel-body">
+            <div class="chart-container">
+              <canvas id="weekChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-label">Titel</label>
-      <input class="form-input" id="tipTitle" placeholder="Kurzer, prägnanter Titel">
-    </div>
+    <div class="full-col">
+      <div class="panel">
 
-    <div class="form-group">
-      <label class="form-label">Beschreibung</label>
-      <textarea class="form-textarea" id="tipDesc" placeholder="Erklärt den Tipp in 1-2 Sätzen..."></textarea>
-    </div>
+        <div class="panel-header">
+          <div class="panel-title">Daten aktualisieren</div>
+        </div>
 
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
-      <button class="btn-save" onclick="saveTip()">Tipp speichern</button>
+        <div class="panel-body">
+
+          <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📂</div>
+            <div class="upload-text">Excel-Datei hier ablegen oder klicken</div>
+            <div class="upload-hint">
+              Direkt die .xlsx Datei aus Microsoft Forms hochladen – keine Umwandlung nötig
+            </div>
+
+            <button class="upload-btn"
+              onclick="event.stopPropagation();document.getElementById('fileInput').click()">
+              Datei auswählen
+            </button>
+          </div>
+
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+
+          <div id="fileStatus"></div>
+
+        </div>
+      </div>
     </div>
 
   </div>
-</div>
+
+</main>
 
 <footer class="footer">
   BBBank GreenBoard · nextGen fürs Klima 2026 · Intern & Vertraulich
