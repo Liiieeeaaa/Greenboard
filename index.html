@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBBank GreenBoard 2026</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M10 3C7 3 4.5 5.5 4.5 9c0 2.2 1.1 4.2 2.8 5.4l.9-2.2C7.1 11.3 6.5 10.2 6.5 9c0-1.9 1.6-4 3.5-4s3.5 2.1 3.5 4c0 1.2-.6 2.3-1.7 3.2l.9 2.2C14.4 13.2 15.5 11.2 15.5 9c0-3.5-2.5-6-5.5-6z" fill="white"/>
+        <path d="M10 10v7" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div>
+      <div class="header-title">BBBank GreenBoard</div>
+      <div class="header-sub">nextGen fürs Klima · Wettbewerb 2026</div>
+    </div>
+  </div>
+
+  <div class="kw-badge" id="kwBadge">KW –</div>
+</header>
+
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="showTab('rangliste', this)">🏆 Rangliste</button>
+  <button class="nav-tab" onclick="showTab('challenges', this)">⚡ Challenges</button>
+  <button class="nav-tab" onclick="showTab('tipps', this)">💡 Tipps & Tricks</button>
+  <button class="nav-tab" onclick="showTab('punktesystem', this)">📋 Punktesystem</button>
+</nav>
+
+<main class="main">
+
+  <!-- ═══════════════ RANGLISTE ═══════════════ -->
+  <div id="tab-rangliste" class="tab-content active">
+
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Gesamtpunkte</div>
+        <div class="metric-value" id="mTotal">–</div>
+        <div class="metric-sub" id="mTotalSub">Noch keine Daten</div>
+        <div class="metric-icon">★</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Teilnehmende</div>
+        <div class="metric-value" id="mPeople">–</div>
+        <div class="metric-sub">Mitarbeitende</div>
+        <div class="metric-icon">👥</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">CO₂ gespart</div>
+        <div class="metric-value" id="mCO2">–<span>kg</span></div>
+        <div class="metric-sub">geschätzter Wert</div>
+        <div class="metric-icon">🌱</div>
+      </div>
+
+      <div class="metric-card gold">
+        <div class="metric-label">Führende Abteilung</div>
+        <div class="metric-value" id="mLeader" style="font-size:18px;">–</div>
+        <div class="metric-sub" id="mLeaderSub">–</div>
+        <div class="metric-icon">🏆</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🏆 Rangliste Abteilungen</div>
+          <div class="panel-badge" id="rankBadge">0 Abteilungen</div>
+        </div>
+
+        <div class="panel-body">
+          <div class="leaderboard" id="leaderboard">
+            <div class="empty-state">
+              <div class="empty-state-icon">📊</div>
+              <div class="empty-state-text">Bitte Excel-Datei hochladen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Punkte pro Abteilung</div>
+          </div>
+
+          <div class="panel-body">
+            <div class="chart-container">
+              <canvas id="deptChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Wochenvergleich</div>
+            <div class="week-tabs" id="weekTabs"></div>
+          </div>
+
+          <div class="panel-body">
+            <div class="chart-container">
+              <canvas id="weekChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="full-col">
+      <div class="panel">
+
+        <div class="panel-header">
+          <div class="panel-title">Daten aktualisieren</div>
+        </div>
+
+        <div class="panel-body">
+
+          <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📂</div>
+            <div class="upload-text">Excel-Datei hier ablegen oder klicken</div>
+            <div class="upload-hint">
+              Direkt die .xlsx Datei aus Microsoft Forms hochladen – keine Umwandlung nötig
+            </div>
+
+            <button class="upload-btn"
+              onclick="event.stopPropagation();document.getElementById('fileInput').click()">
+              Datei auswählen
+            </button>
+          </div>
+
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+
+          <div id="fileStatus"></div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer class="footer">
+  BBBank GreenBoard · nextGen fürs Klima 2026 · Intern & Vertraulich
+</footer>
+
+<script src="script.js"></script>
+
+</body>
+</html>
