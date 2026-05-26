@@ -4,24 +4,10 @@
 
 Herzlich willkommen im Entwicklungs-Repository des **GreenBoards**! Dieses Dashboard dient zur automatisierten, internen Auswertung unserer Nachhaltigkeitsumfragen (z. B. aus Microsoft Forms). Es visualisiert Daten zu Mobilität, Dienstreisen, Homeoffice und Papierverbrauch in modernen Diagrammen.
 
-⚠️ **Sicherheitshinweis:** Dieses Repository ist **PRIVAT**. Da wir hier an internen Tools arbeiten, darf die Sichtbarkeit nicht auf „Öffentlich“ gestellt werden.
 
 ---
 
-## 💻 Wie nutze ich das Board intern? (Für Anwender)
 
-Da das GreenBoard eine reine Client-Side-Anwendung ist, benötigt es keinen Server. Der gesamte Code steckt in der Datei `index.html`.
-
-**Schritt-für-Schritt-Anleitung:**
-1. Exportiere die aktuellen Umfragedaten aus Microsoft Forms als Excel-Datei (`.xlsx`) und speichere sie auf deinem Rechner.
-2. Lade die Datei **`index.html`** aus diesem Repository herunter (oder öffne die Kopie von unserem internen Netzlaufwerk).
-3. Mache einen **Doppelklick auf die `index.html`**. Sie öffnet sich sofort als Webseite in deinem normalen Browser (Edge/Chrome).
-4. Klicke oben rechts auf **„Datei auswählen“** und lade deine exportierte Excel-Datei hoch.
-5. Das Board wechselt sofort von den Demo-Daten zu den echten Daten und aktualisiert alle Diagramme.
-
-*Hinweis zum Datenschutz:* Die Excel-Verarbeitung passiert zu 100 % lokal in deinem Browser auf deinem Firmennotebook. Es werden **keine Daten ins Internet hochgeladen** oder auf GitHub gespeichert. Sobald du den Browser-Tab schließt, sind die echten Daten wieder weg.
-
----
 
 ## 📊 Anforderungen an die Excel-Struktur (Für Admins)
 
