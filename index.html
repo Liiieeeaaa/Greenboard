@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreenBoard - Nachhaltigkeits-Dashboard</title>
+    <!-- Tailwind CSS für modernes Design -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Chart.js für die Diagramme -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS für das Auslesen der Excel-Datei -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-emerald-600 text-white p-6 shadow-md">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold flex items-center gap-2">🌱 GreenBoard</h1>
+                <p class="text-emerald-100 text-sm">Das Nachhaltigkeits-Dashboard für unsere Auswertungen</p>
+            </div>
+            <!-- Excel Upload Button -->
+            <div class="bg-emerald-700 p-3 rounded-lg shadow-inner flex items-center gap-3">
+                <label class="text-sm font-semibold text-emerald-100 block">Excel-Daten aktualisieren:</label>
+                <input type="file" id="excelFile" accept=".xlsx, .xls" 
+                       class="text-sm text-gray-200 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-500 file:text-white hover:file:bg-emerald-400 cursor-pointer">
+            </div>
+        </div>
+    </header>
+
+    <!-- Hauptinhalt -->
+    <main class="container mx-auto p-4 md:p-6 my-6">
+        
+        <!-- Status-Meldung für Datenquelle -->
+        <div id="dataSourceBadge" class="mb-6 p-3 bg-amber-50 border-l-4 border-amber-500 text-amber-800 rounded-r-md text-sm flex justify-between items-center shadow-xs">
+            <span>⚠️ Aktuell werden <strong>Demo-Daten</strong> angezeigt. Lade oben rechts deine Excel-Datei hoch, um reale Daten zu sehen.</span>
+        </div>
+
+        <!-- KPI Kacheln (Zusammenfassung) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-xl shadow-xs border-t-4 border-emerald-500">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Teilnehmende Personen</p>
+                <h3 class="text-2xl font-bold mt-1 text-gray-800" id="kpiTeilnehmer">-</h3>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-xs border-t-4 border-emerald-500">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Grüne Anfahrten</p>
+                <h3 class="text-2xl font-bold mt-1 text-emerald-600" id="kpiGruenAnfahrt">-</h3>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-xs border-t-4 border-emerald-500">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Homeoffice-Tage (Soll)</p>
+                <h3 class="text-2xl font-bold mt-1 text-blue-600" id="kpiHomeoffice">-</h3>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow-xs border-t-4 border-emerald-500">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Papier-Vermeidung</p>
+                <h3 class="text-2xl font-bold mt-1 text-amber-600" id="kpiDrucken">-</h3>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="border-b border-gray-200 mb-6 flex flex-wrap gap-2">
+            <button onclick="switchTab('tab-mobilitaet')" id="btn-tab-mobilitaet" class="tab-btn px-4 py-2 font-medium text-sm rounded-t-lg border-b-2 border-emerald-500 text-emerald-600 bg-white shadow-xs">🚗 Mobilität & Dienstreisen</button>
+            <button onclick="switchTab('tab-homeoffice')" id="btn-tab-homeoffice" class="tab-btn px-4 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50">🏠 Homeoffice & Drucken</button>
+            <button onclick="switchTab('tab-abteilungen')" id="btn-tab-abteilungen" class="tab-btn px-4 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50">🏢 Abteilungsvergleich</button>
+        </div>
+
+        <!-- TAB CONTENT: MOBILITÄT -->
+        <div id="tab-mobilitaet" class="tab-content block">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Anfahrt zur Arbeit -->
+                <div class="bg-white p-6 rounded-xl shadow-xs">
+                    <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">Verkehrsmittel zur Arbeitsstätte</h3>
+                    <div class="relative h-64 flex justify-center">
+                        <canvas id="chartAnfahrt"></canvas>
+                    </div>
+                </div>
+                <!-- Dienstreisen -->
+                <div class="bg-white p-6 rounded-xl shadow-xs">
+                    <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">Verkehrsmittel bei Dienstreisen</h3>
+                    <div class="relative h-64 flex justify-center">
+                        <canvas id="chartDienstreisen"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB CONTENT: HOMEOFFICE -->
+        <div id="tab-homeoffice" class="tab-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Homeoffice Verteilung -->
+                <div class="bg-white p-6 rounded-xl shadow-xs">
+                    <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">Geplante Homeoffice-Tage pro Woche</h3>
+                    <div class="relative h-64">
+                        <canvas id="chartHomeoffice"></canvas>
+                    </div>
+                </div>
+                <!-- Druckverhalten -->
+                <div class="bg-white p-6 rounded-xl shadow-xs">
+                    <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">Gedruckte Seiten pro Woche</h3>
+                    <div class="relative h-64 flex justify-center">
+                        <canvas id="chartDrucken"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB CONTENT: ABTEILUNGEN -->
+        <div id="tab-abteilungen" class="tab-content hidden">
+            <div class="bg-white p-6 rounded-xl shadow-xs mb-6">
+                <h3 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">Teilnahme-Quote nach Abteilungen</h3>
+                <div class="relative h-80">
+                    <canvas id="chartAbteilungen"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 text-center py-6 mt-12 text-xs border-t border-gray-700">
+        <p>© 2026 GreenBoard - Nachhaltigkeits-Tracker</p>
+    </footer>
+
+    <!-- LOGIK & DATENVERARBEITUNG -->
+    <script>
+        // GLOBALE VARIABLEN FÜR CHARTS
+        let charts = {};
+
+        // DEMO-DATEN (Falls keine Datei hochgeladen ist)
+        const demoDaten = [
+            {"Zeitstempel": "2026-03-01", "E-Mail": "lea.r@test.de", "Abteilung": "Vertrieb", "Verkehrsmittel": "Fahrrad", "Dienstreise": "Keine", "Homeoffice": 2, "Drucken": "0 Seiten"},
+            {"Zeitstempel": "2026-03-02", "E-Mail": "rouven.k@test.de", "Abteilung": "IT", "Verkehrsmittel": "Auto allein", "Dienstreise": "Flugzeug", "Homeoffice": 4, "Drucken": "11-30 Seiten"},
+            {"Zeitstempel": "2026-03-02", "E-Mail": "anna.m@test.de", "Abteilung": "Marketing", "Verkehrsmittel": "ÖPNV", "Dienstreise": "Bahn", "Homeoffice": 1, "Drucken": "1-10 Seiten"},
+            {"Zeitstempel": "2026-03-03", "E-Mail": "jonas.s@test.de", "Abteilung": "Vertrieb", "Verkehrsmittel": "Fahrgemeinschaft", "Dienstreise": "Auto allein", "Homeoffice": 2, "Drucken": "0 Seiten"},
+            {"Zeitstempel": "2026-03-04", "E-Mail": "sarah.b@test.de", "Abteilung": "Personal", "Verkehrsmittel": "Zu Fuß", "Dienstreise": "Keine", "Homeoffice": 3, "Drucken": "1-10 Seiten"},
+            {"Zeitstempel": "2026-03-05", "E-Mail": "michael.w@test.de", "Abteilung": "IT", "Verkehrsmittel": "ÖPNV", "Dienstreise": "ÖPNV", "Homeoffice": 5, "Drucken": "30+ Seiten"}
+        ];
+
+        // START DER ANWENDUNG
+        window.addEventListener('DOMContentLoaded', () => {
+            verarbeiteDaten(demoDaten);
+            
+            // Event Listener für Excel-Upload
+            document.getElementById('excelFile').addEventListener('change', handleFileUpload);
+        });
+
+        // TABS SWITCHEN
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.replace('block', 'hidden'));
+            document.getElementById(tabId).classList.replace('hidden', 'block');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-emerald-500', 'text-emerald-600', 'bg-white', 'shadow-xs');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.remove('border-transparent', 'text-gray-500');
+            activeBtn.classList.add('border-emerald-500', 'text-emerald-600', 'bg-white', 'shadow-xs');
+        }
+
+        // EXCEL HOCHLADEN & AUSLESEN
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Als JSON auslesen
+                const rawData = XLSX.utils.sheet_to_json(worksheet);
+                
+                if(rawData.length === 0) {
+                    alert("Die Excel-Datei scheint leer zu sein.");
+                    return;
+                }
+
+                // Spaltennamen vereinheitlichen
+                const bereinigteDaten = rawData.map(row => {
+                    let newRow = {};
+                    for (let key in row) {
+                        let lowerKey = key.toLowerCase();
+                        if (lowerKey.includes('abteilung')) newRow['Abteilung'] = row[key];
+                        else if (lowerKey.includes('startzeit') || lowerKey.includes('start') || lowerKey.includes('zeit')) newRow['Zeitstempel'] = row[key];
+                        else if (lowerKey.includes('mail') || lowerKey.includes('name')) newRow['E-Mail'] = row[key];
+                        else if (lowerKey.includes('verkehrsmittel') && lowerKey.includes('arbeit')) newRow['Verkehrsmittel'] = row[key];
+                        else if (lowerKey.includes('dienstreise')) newRow['Dienstreise'] = row[key];
+                        else if (lowerKey.includes('homeoffice')) newRow['Homeoffice'] = row[key];
+                        else if (lowerKey.includes('seiten') || lowerKey.includes('gedruckt')) newRow['Drucken'] = row[key];
+                    }
+                    return newRow;
+                });
+
+                // Doppeleinträge entfernen (neueste Zuweisung behalten)
+                const uniqueDaten = [];
+                const gesehen = new Set();
+                for (let i = bereinigteDaten.length - 1; i >= 0; i--) {
+                    let mail = bereinigteDaten[i]['E-Mail'] || i;
+                    if (!gesehen.has(mail)) {
+                        gesehen.add(mail);
+                        uniqueDaten.unshift(bereinigteDaten[i]);
+                    }
+                }
+
+                // Banner anpassen
+                document.getElementById('dataSourceBadge').className = "mb-6 p-3 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 rounded-r-md text-sm flex justify-between items-center shadow-xs";
+                document.getElementById('dataSourceBadge').innerHTML = "<span>✅ Erfolgreich! Es werden eure <strong>echten Excel-Daten</strong> ausgewertet.</span>";
+
+                verarbeiteDaten(uniqueDaten);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // DATEN AUSWERTEN & DIAGRAMME ZEICHNEN
+        function verarbeiteDaten(daten) {
+            // Zähler-Objekte initialisieren
+            let countsAnfahrt = {"Fahrrad": 0, "Zu Fuß": 0, "ÖPNV": 0, "Fahrgemeinschaft": 0, "Auto allein": 0};
+            let countsDienstreise = {"Keine": 0, "Bahn": 0, "ÖPNV": 0, "Fahrgemeinschaft": 0, "Auto allein": 0, "Flugzeug": 0};
+            let countsHomeoffice = {"0 Tage": 0, "1 Tag": 0, "2 Tage": 0, "3 Tage": 0, "4 Tage": 0, "5 Tage": 0};
+            let countsDrucken = {"0 Seiten": 0, "1-10 Seiten": 0, "11-30 Seiten": 0, "30+ Seiten": 0};
+            let countsAbteilungen = {};
+
+            let sumHO = 0, hoEintraege = 0;
+            let grueneAnfahrten = 0;
+            let nullDrucker = 0;
+
+            daten.forEach(row => {
+                // 1. Anfahrt
+                let v = row['Verkehrsmittel'] ? row['Verkehrsmittel'].toString().trim() : '';
+                if (/fahrrad/i.test(v)) { countsAnfahrt["Fahrrad"]++; grueneAnfahrten++; }
+                else if (/fuß|gehen|gelaufen/i.test(v)) { countsAnfahrt["Zu Fuß"]++; grueneAnfahrten++; }
+                else if (/öpinv|öpnv|bahn|bus|zug/i.test(v)) { countsAnfahrt["ÖPNV"]++; grueneAnfahrten++; }
+                else if (/gemeinschaft|mitfahrer/i.test(v)) { countsAnfahrt["Fahrgemeinschaft"]++; }
+                else if (/auto|pkw/i.test(v)) { countsAnfahrt["Auto allein"]++; }
+
+                // 2. Dienstreise
+                let d = row['Dienstreise'] ? row['Dienstreise'].toString().trim() : '';
+                if (/keine|nicht/i.test(d)) countsDienstreise["Keine"]++;
+                else if (/bahn|zug/i.test(d)) countsDienstreise["Bahn"]++;
+                else if (/öpnv|bus/i.test(d)) countsDienstreise["ÖPNV"]++;
+                else if (/gemeinschaft/i.test(d)) countsDienstreise["Fahrgemeinschaft"]++;
+                else if (/flug/i.test(d)) countsDienstreise["Flugzeug"]++;
+                else if (/auto|pkw/i.test(d)) countsDienstreise["Auto allein"]++;
+
+                // 3. Homeoffice
+                if (row['Homeoffice'] !== undefined) {
+                    let hoVal = parseInt(row['Homeoffice']);
+                    if (!isNaN(hoVal) && hoVal >= 0 && hoVal <= 5) {
+                        countsHomeoffice[hoVal + (hoVal === 1 ? " Tag" : " Tage")]++;
+                        sumHO += hoVal;
+                        hoEintraege++;
+                    }
+                }
+
+                // 4. Drucken
+                let pr = row['Drucken'] ? row['Drucken'].toString().trim() : '';
+                if (/0|nie|keine/i.test(pr)) { countsDrucken["0 Seiten"]++; nullDrucker++; }
+                else if (/1-10|bis 10/i.test(pr)) countsDrucken["1-10 Seiten"]++;
+                else if (/11-30/i.test(pr)) countsDrucken["11-30 Seiten"]++;
+                else if (/30/i.test(pr)) countsDrucken["30+ Seiten"]++;
+
+                // 5. Abteilungen
+                let abt = row['Abteilung'] || 'Nicht angegeben';
+                countsAbteilungen[abt] = (countsAbteilungen[abt] || 0) + 1;
+            });
+
+            // KPIs berechnen & anzeigen
+            document.getElementById('kpiTeilnehmer').innerText = daten.length;
+            document.getElementById('kpiGruenAnfahrt').innerText = daten.length > 0 ? Math.round((grueneAnfahrten / daten.length) * 100) + "%" : "-";
+            document.getElementById('kpiHomeoffice').innerText = hoEintraege > 0 ? (sumHO / hoEintraege).toFixed(1) + " Tage" : "-";
+            document.getElementById('kpiDrucken').innerText = daten.length > 0 ? Math.round((nullDrucker / daten.length) * 100) + "% (0 S.)" : "-";
+
+            // CHARTS AKTUALISIEREN ODER ERSTELLEN
+            initPieChart('chartAnfahrt', Object.keys(countsAnfahrt), Object.values(countsAnfahrt), ['#10b981', '#34d399', '#60a5fa', '#f59e0b', '#ef4444']);
+            initPieChart('chartDienstreisen', Object.keys(countsDienstreise), Object.values(countsDienstreise), ['#94a3b8', '#10b981', '#60a5fa', '#f59e0b', '#ef4444', '#7c3aed']);
+            initBarChart('chartHomeoffice', Object.keys(countsHomeoffice), Object.values(countsHomeoffice), 'Mitarbeiter', '#3b82f6');
+            initPieChart('chartDrucken', Object.keys(countsDrucken), Object.values(countsDrucken), ['#10b981', '#f59e0b', '#f97316', '#ef4444']);
+            initBarChart('chartAbteilungen', Object.keys(countsAbteilungen), Object.values(countsAbteilungen), 'Meldungen', '#059669');
+        }
+
+        // HILFSFUNKTIONEN FÜR CHARTS (Zerstört alte Instanzen vor Neubau)
+        function initPieChart(canvasId, labels, data, colors) {
+            if (charts[canvasId]) charts[canvasId].destroy();
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{ data: data, backgroundColor: colors }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function initBarChart(canvasId, labels, data, labelLabel, color) {
+            if (charts[canvasId]) charts[canvasId].destroy();
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: labelLabel, data: data, backgroundColor: color }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
