@@ -1,50 +1,96 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GreenBoard – Internes Nachhaltigkeits-Dashboard</title>
-    <!-- Hier wird das ausgelagerte CSS-Design geladen -->
-    <link rel="stylesheet" href="style.css">
-    <!-- Externe Bibliotheken -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBBank GreenBoard 2026</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-    <header>
-        <h1>🌱 GreenBoard</h1>
-        <p>Internes Nachhaltigkeits-Dashboard</p>
-    </header>
-
-    <div class="container">
-        <div class="upload-area">
-            <h2>Excel-Daten importieren</h2>
-            <p>Die Daten werden zu 100 % lokal in deinem Browser verarbeitet.</p>
-            <input type="file" id="excelFile" accept=".xlsx, .xls" />
-        </div>
-
-        <div class="grid">
-            <div class="card">
-                <h3>Anfahrt zur Arbeit</h3>
-                <canvas id="mobilityChart"></canvas>
-            </div>
-            <div class="card">
-                <h3>Homeoffice-Tage pro Woche</h3>
-                <canvas id="homeofficeChart"></canvas>
-            </div>
-            <div class="card">
-                <h3>Papierverbrauch (Seiten/Woche)</h3>
-                <canvas id="paperChart"></canvas>
-            </div>
-        </div>
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M10 3C7 3 4.5 5.5 4.5 9c0 2.2 1.1 4.2 2.8 5.4l.9-2.2C7.1 11.3 6.5 10.2 6.5 9c0-1.9 1.6-4 3.5-4s3.5 2.1 3.5 4c0 1.2-.6 2.3-1.7 3.2l.9 2.2C14.4 13.2 15.5 11.2 15.5 9c0-3.5-2.5-6-5.5-6z" fill="white"/>
+        <path d="M10 10v7" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
     </div>
 
-    <footer>
-        <p>Gemeinsam für eine grünere Zukunft. | BBBank Projektteam</p>
-    </footer>
+    <div>
+      <div class="header-title">BBBank GreenBoard</div>
+      <div class="header-sub">nextGen fürs Klima · Wettbewerb 2026</div>
+    </div>
+  </div>
 
-    <!-- Hier wird die ausgelagerte JavaScript-Logik geladen -->
-    <script src="script.js"></script>
+  <div class="kw-badge" id="kwBadge">KW –</div>
+</header>
+
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="showTab('rangliste', this)">🏆 Rangliste</button>
+  <button class="nav-tab" onclick="showTab('challenges', this)">⚡ Challenges</button>
+  <button class="nav-tab" onclick="showTab('tipps', this)">💡 Tipps & Tricks</button>
+  <button class="nav-tab" onclick="showTab('punktesystem', this)">📋 Punktesystem</button>
+</nav>
+
+<main class="main">
+
+  <!-- HIER KOMMT DER GESAMTE HTML-INHALT REIN -->
+  <!-- ALSO ALLES AUS DEM BODY -->
+  <!-- OHNE <script> UND OHNE <style> -->
+
+</main>
+
+<!-- ADD TIP MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+
+    <div class="modal-title">💡 Neuen Tipp hinzufügen</div>
+
+    <div class="form-group">
+      <label class="form-label">Kategorie</label>
+
+      <select class="form-select" id="tipCat">
+        <option value="papier">🗒️ Papier</option>
+        <option value="energie">⚡ Energie</option>
+        <option value="mobilitaet">🚗 Mobilität</option>
+        <option value="allgemein">🌿 Allgemein</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Emoji / Icon</label>
+      <input class="form-input" id="tipIcon" placeholder="z.B. 💡 oder 🌱" maxlength="4">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Titel</label>
+      <input class="form-input" id="tipTitle" placeholder="Kurzer, prägnanter Titel">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Beschreibung</label>
+      <textarea class="form-textarea" id="tipDesc" placeholder="Erklärt den Tipp in 1-2 Sätzen..."></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
+      <button class="btn-save" onclick="saveTip()">Tipp speichern</button>
+    </div>
+
+  </div>
+</div>
+
+<footer class="footer">
+  BBBank GreenBoard · nextGen fürs Klima 2026 · Intern & Vertraulich
+</footer>
+
+<script src="script.js"></script>
+
 </body>
 </html>
