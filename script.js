@@ -23,9 +23,10 @@ const SCORE = {
     'fahrgemeinschaft': 10, 
     'auto allein': 5 
   },
+ // Dienstreisen (NUR Punkte, wenn man wirklich gereist ist!)
   travel: {
-    'keine': 15, 
-    'bahn': 15, 
+    'keine': 0,        
+    'bahn': 15,       
     'öpvn': 12, 
     'öpnv': 12, 
     'fahrgemeinschaft': 8, 
