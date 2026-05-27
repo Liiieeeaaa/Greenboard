@@ -4,30 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BBBank GreenBoard 2026</title>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
 <header class="header">
   <div class="header-left">
     <div class="header-logo">
-      <svg viewBox="0 0 20 20" fill="none">
-        <path d="M10 3C7 3 4.5 5.5 4.5 9c0 2.2 1.1 4.2 2.8 5.4l.9-2.2C7.1 11.3 6.5 10.2 6.5 9c0-1.9 1.6-4 3.5-4s3.5 2.1 3.5 4c0 1.2-.6 2.3-1.7 3.2l.9 2.2C14.4 13.2 15.5 11.2 15.5 9c0-3.5-2.5-6-5.5-6z" fill="white"/>
-        <path d="M10 10v7" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-      </svg>
+      <svg viewBox="0 0 20 20" fill="none"><path d="M10 3C7 3 4.5 5.5 4.5 9c0 2.2 1.1 4.2 2.8 5.4l.9-2.2C7.1 11.3 6.5 10.2 6.5 9c0-1.9 1.6-4 3.5-4s3.5 2.1 3.5 4c0 1.2-.6 2.3-1.7 3.2l.9 2.2C14.4 13.2 15.5 11.2 15.5 9c0-3.5-2.5-6-5.5-6z" fill="white"/><path d="M10 10v7" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
     </div>
-
     <div>
       <div class="header-title">BBBank GreenBoard</div>
       <div class="header-sub">nextGen fürs Klima · Wettbewerb 2026</div>
     </div>
   </div>
-
   <div class="kw-badge" id="kwBadge">KW –</div>
 </header>
 
@@ -50,21 +42,18 @@
         <div class="metric-sub" id="mTotalSub">Noch keine Daten</div>
         <div class="metric-icon">★</div>
       </div>
-
       <div class="metric-card">
         <div class="metric-label">Teilnehmende</div>
         <div class="metric-value" id="mPeople">–</div>
         <div class="metric-sub">Mitarbeitende</div>
         <div class="metric-icon">👥</div>
       </div>
-
       <div class="metric-card">
         <div class="metric-label">CO₂ gespart</div>
         <div class="metric-value" id="mCO2">–<span>kg</span></div>
         <div class="metric-sub">geschätzter Wert</div>
         <div class="metric-icon">🌱</div>
       </div>
-
       <div class="metric-card gold">
         <div class="metric-label">Führende Abteilung</div>
         <div class="metric-value" id="mLeader" style="font-size:18px;">–</div>
@@ -74,94 +63,243 @@
     </div>
 
     <div class="two-col">
-
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">🏆 Rangliste Abteilungen</div>
           <div class="panel-badge" id="rankBadge">0 Abteilungen</div>
         </div>
-
         <div class="panel-body">
           <div class="leaderboard" id="leaderboard">
-            <div class="empty-state">
-              <div class="empty-state-icon">📊</div>
-              <div class="empty-state-text">Bitte Excel-Datei hochladen</div>
-            </div>
+            <div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Bitte Excel-Datei hochladen</div></div>
           </div>
         </div>
       </div>
-
       <div style="display:flex;flex-direction:column;gap:16px;">
-
         <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Punkte pro Abteilung</div>
-          </div>
-
-          <div class="panel-body">
-            <div class="chart-container">
-              <canvas id="deptChart"></canvas>
-            </div>
-          </div>
+          <div class="panel-header"><div class="panel-title">Punkte pro Abteilung</div></div>
+          <div class="panel-body"><div class="chart-container"><canvas id="deptChart"></canvas></div></div>
         </div>
-
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title">Wochenvergleich</div>
             <div class="week-tabs" id="weekTabs"></div>
           </div>
-
-          <div class="panel-body">
-            <div class="chart-container">
-              <canvas id="weekChart"></canvas>
-            </div>
-          </div>
+          <div class="panel-body"><div class="chart-container"><canvas id="weekChart"></canvas></div></div>
         </div>
-
       </div>
     </div>
 
     <div class="full-col">
       <div class="panel">
-
-        <div class="panel-header">
-          <div class="panel-title">Daten aktualisieren</div>
-        </div>
-
+        <div class="panel-header"><div class="panel-title">Daten aktualisieren</div></div>
         <div class="panel-body">
-
           <div class="upload-area" onclick="document.getElementById('fileInput').click()">
             <div class="upload-icon">📂</div>
             <div class="upload-text">Excel-Datei hier ablegen oder klicken</div>
-            <div class="upload-hint">
-              Direkt die .xlsx Datei aus Microsoft Forms hochladen – keine Umwandlung nötig
-            </div>
-
-            <button class="upload-btn"
-              onclick="event.stopPropagation();document.getElementById('fileInput').click()">
-              Datei auswählen
-            </button>
+            <div class="upload-hint">Direkt die .xlsx Datei aus Microsoft Forms hochladen – keine Umwandlung nötig</div>
+            <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Datei auswählen</button>
           </div>
-
           <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
-
           <div id="fileStatus"></div>
-
         </div>
       </div>
     </div>
 
   </div>
 
+  <!-- ═══════════════ CHALLENGES ═══════════════ -->
+  <div id="tab-challenges" class="tab-content">
+    <p class="challenges-intro">Nehmt an unseren wöchentlichen Challenges teil und sammelt extra Punkte – oder macht einfach mit bei unseren allgemeinen Aktionen für mehr Nachhaltigkeit im Büroalltag!</p>
+
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header"><div class="panel-title">⚡ Aktuelle Punkte-Challenges</div><div class="panel-badge">Extra Punkte sichern</div></div>
+      <div class="panel-body">
+        <div class="challenge-grid">
+
+          <div class="challenge-card type-punkte">
+            <span class="challenge-type-badge">Punkte-Challenge</span>
+            <div class="challenge-icon">🖨️</div>
+            <div class="challenge-title">Druckfreie Woche</div>
+            <div class="challenge-desc">Schafft ihr es eine ganze Woche lang komplett ohne Drucker auszukommen? Alle Meetings, Unterlagen und Notizen nur digital.</div>
+            <div class="challenge-pts">+20 Bonuspunkte für die Abteilung</div>
+            <div><span class="challenge-status status-aktiv">● Aktiv diese Woche</span></div>
+          </div>
+
+          <div class="challenge-card type-punkte">
+            <span class="challenge-type-badge">Punkte-Challenge</span>
+            <div class="challenge-icon">🚲</div>
+            <div class="challenge-title">Pedal-Power-Woche</div>
+            <div class="challenge-desc">Kommt diese Woche so oft wie möglich mit dem Fahrrad oder zu Fuß zur Arbeit. Jeder Tag zählt!</div>
+            <div class="challenge-pts">+10 Bonuspunkte pro Person pro Tag</div>
+            <div><span class="challenge-status status-bald">◌ Nächste Woche</span></div>
+          </div>
+
+          <div class="challenge-card type-punkte">
+            <span class="challenge-type-badge">Punkte-Challenge</span>
+            <div class="challenge-icon">💻</div>
+            <div class="challenge-title">Digital-First Meeting</div>
+            <div class="challenge-desc">Ersetzt eine geplante Dienstreise durch ein Videokonferenz-Meeting. Spart CO₂ und Zeit!</div>
+            <div class="challenge-pts">+25 Bonuspunkte pro vermiedener Reise</div>
+            <div><span class="challenge-status status-aktiv">● Aktiv diesen Monat</span></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">🌱 Allgemeine Aktionen</div><div class="panel-badge">Mitmachen lohnt sich</div></div>
+      <div class="panel-body">
+        <div class="challenge-grid">
+
+          <div class="challenge-card type-aktion">
+            <span class="challenge-type-badge">Aktion</span>
+            <div class="challenge-icon">☕</div>
+            <div class="challenge-title">Mehrwegbecher-Aktion</div>
+            <div class="challenge-desc">Bringt euren eigenen Becher mit in die Teeküche. Wer diese Woche keinen Einwegbecher nutzt, macht mit!</div>
+            <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
+          </div>
+
+          <div class="challenge-card type-aktion">
+            <span class="challenge-type-badge">Aktion</span>
+            <div class="challenge-icon">💡</div>
+            <div class="challenge-title">Licht aus beim Verlassen</div>
+            <div class="challenge-desc">Achtet darauf dass Licht, Bildschirme und Geräte beim Verlassen des Büros oder Besprechungsraums ausgeschaltet sind.</div>
+            <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
+          </div>
+
+          <div class="challenge-card type-aktion">
+            <span class="challenge-type-badge">Aktion</span>
+            <div class="challenge-icon">🌿</div>
+            <div class="challenge-title">Green Lunch</div>
+            <div class="challenge-desc">Probiert diese Woche in der Mittagspause eine vegetarische oder vegane Option – gut für euch und fürs Klima.</div>
+            <div><span class="challenge-status status-bald">◌ Startet nächste Woche</span></div>
+          </div>
+
+          <div class="challenge-card type-aktion">
+            <span class="challenge-type-badge">Aktion</span>
+            <div class="challenge-icon">♻️</div>
+            <div class="challenge-title">Mülltrennung Check</div>
+            <div class="challenge-desc">Schaut gemeinsam ob die Mülltrennung in eurem Bereich korrekt funktioniert und klärt Kollegen auf falls nötig.</div>
+            <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
+          </div>
+
+          <div class="challenge-card type-aktion">
+            <span class="challenge-type-badge">Aktion</span>
+            <div class="challenge-icon">📧</div>
+            <div class="challenge-title">E-Mail Postfach Cleaner</div>
+            <div class="challenge-desc">Löscht alte E-Mails und bereinigt euer Postfach – jede gespeicherte E-Mail verbraucht Serverenergie.</div>
+            <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
+          </div>
+
+          <div class="challenge-card type-aktion">
+            <span class="challenge-type-badge">Aktion</span>
+            <div class="challenge-icon">🤝</div>
+            <div class="challenge-title">Social Day nutzen</div>
+            <div class="challenge-desc">Nutzt euren jährlichen Social Day für einen ehrenamtlichen Einsatz – meldet euch beim Team und sammelt 30 Punkte!</div>
+            <div><span class="challenge-status status-aktiv">● Jährlich verfügbar</span></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TIPPS ═══════════════ -->
+  <div id="tab-tipps" class="tab-content">
+    <div class="tips-toolbar">
+      <div class="tips-filter">
+        <button class="filter-btn active" onclick="filterTips('alle', this)">Alle</button>
+        <button class="filter-btn" onclick="filterTips('papier', this)">🗒️ Papier</button>
+        <button class="filter-btn" onclick="filterTips('energie', this)">⚡ Energie</button>
+        <button class="filter-btn" onclick="filterTips('mobilitaet', this)">🚗 Mobilität</button>
+        <button class="filter-btn" onclick="filterTips('allgemein', this)">🌿 Allgemein</button>
+      </div>
+      <button class="add-tip-btn" onclick="openModal()">+ Tipp hinzufügen</button>
+    </div>
+    <div class="tips-grid" id="tipsGrid"></div>
+  </div>
+
+  <!-- ═══════════════ PUNKTESYSTEM ═══════════════ -->
+  <div id="tab-punktesystem" class="tab-content">
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">📋 Punktesystem Übersicht</div><div class="panel-badge">Max. 110 Punkte / Woche</div></div>
+      <div class="panel-body">
+        <div class="scoring-grid">
+          <div>
+            <div class="scoring-cat-title">🚗 Anfahrtsweg (max. 15P)</div>
+            <div class="scoring-row"><span>Fahrrad / Zu Fuß</span><span class="scoring-pts">15P</span></div>
+            <div class="scoring-row"><span>ÖPNV</span><span class="scoring-pts">10P</span></div>
+            <div class="scoring-row"><span>Auto Fahrgemeinschaft</span><span class="scoring-pts">5P</span></div>
+            <div class="scoring-row"><span>Auto allein</span><span class="scoring-pts">0P</span></div>
+          </div>
+          <div>
+            <div class="scoring-cat-title">✈️ Dienstreise (max. 15P)</div>
+            <div class="scoring-row"><span>Keine Dienstreise</span><span class="scoring-pts">15P</span></div>
+            <div class="scoring-row"><span>Bahn / ÖPNV</span><span class="scoring-pts">10P</span></div>
+            <div class="scoring-row"><span>Auto Fahrgemeinschaft</span><span class="scoring-pts">5P</span></div>
+            <div class="scoring-row"><span>Auto allein</span><span class="scoring-pts">2P</span></div>
+            <div class="scoring-row"><span>Flugzeug</span><span class="scoring-pts">0P</span></div>
+          </div>
+          <div>
+            <div class="scoring-cat-title">🏠 Homeoffice (max. 35P)</div>
+            <div class="scoring-row"><span>1 Tag</span><span class="scoring-pts">8P</span></div>
+            <div class="scoring-row"><span>2 Tage</span><span class="scoring-pts">16P</span></div>
+            <div class="scoring-row"><span>3 Tage</span><span class="scoring-pts">24P</span></div>
+            <div class="scoring-row"><span>4 Tage</span><span class="scoring-pts">30P</span></div>
+            <div class="scoring-row"><span>5 Tage</span><span class="scoring-pts">35P</span></div>
+          </div>
+          <div>
+            <div class="scoring-cat-title">🖨️ Drucken (max. 15P)</div>
+            <div class="scoring-row"><span>0 Seiten</span><span class="scoring-pts">15P</span></div>
+            <div class="scoring-row"><span>1–10 Seiten</span><span class="scoring-pts">8P</span></div>
+            <div class="scoring-row"><span>11–30 Seiten</span><span class="scoring-pts">3P</span></div>
+            <div class="scoring-row"><span>30+ Seiten</span><span class="scoring-pts">0P</span></div>
+            <br>
+            <div class="scoring-cat-title">🤝 Social Day (1× jährlich)</div>
+            <div class="scoring-row"><span>Teilgenommen</span><span class="scoring-pts">30P</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
-<footer class="footer">
-  BBBank GreenBoard · nextGen fürs Klima 2026 · Intern & Vertraulich
-</footer>
+<!-- ADD TIP MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">💡 Neuen Tipp hinzufügen</div>
+    <div class="form-group">
+      <label class="form-label">Kategorie</label>
+      <select class="form-select" id="tipCat">
+        <option value="papier">🗒️ Papier</option>
+        <option value="energie">⚡ Energie</option>
+        <option value="mobilitaet">🚗 Mobilität</option>
+        <option value="allgemein">🌿 Allgemein</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Emoji / Icon</label>
+      <input class="form-input" id="tipIcon" placeholder="z.B. 💡 oder 🌱" maxlength="4">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Titel</label>
+      <input class="form-input" id="tipTitle" placeholder="Kurzer, prägnanter Titel">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Beschreibung</label>
+      <textarea class="form-textarea" id="tipDesc" placeholder="Erklärt den Tipp in 1-2 Sätzen..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
+      <button class="btn-save" onclick="saveTip()">Tipp speichern</button>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">BBBank GreenBoard · nextGen fürs Klima 2026 · Intern & Vertraulich</footer>
 
 <script src="script.js"></script>
-
 </body>
 </html>
-
-
