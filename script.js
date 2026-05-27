@@ -12,35 +12,65 @@ function showTab(id, btn) {
   btn.classList.add('active');
 }
 
-// ── SCORING ───────────────────────────────────────────────────────────────────
-const SCORE={
-  commute:{'fahrrad':15,'zu fuß':15,'zu fuss':15,'öpvn':10,'öpnv':10,'fahrgemeinschaft':5,'auto allein':0},
-  travel:{'keine':15,'bahn':10,'öpvn':10,'öpnv':10,'fahrgemeinschaft':5,'auto allein':2,'flugzeug':0},
-  print:{'0 seiten':15,'1-10':8,'1–10':8,'11-30':3,'11–30':3,'30+':0,'+30':0},
-  homeofficePts:[0,8,16,24,30,35],
-  socialDay:30
+// ── SCORING (POSITIV & INTEGRATIV - KEINE 0 PUNKTE) ───────────────────────────
+const SCORE = {
+  commute: {
+    'fahrrad': 20, 
+    'zu fuß': 20, 
+    'zu fuss': 20, 
+    'öpvn': 15, 
+    'öpnv': 15, 
+    'fahrgemeinschaft': 10, 
+    'auto allein': 5 
+  },
+ // Dienstreisen (NUR Punkte, wenn man wirklich gereist ist!)
+  travel: {
+    'keine': 0,        
+    'bahn': 15,       
+    'öpvn': 12, 
+    'öpnv': 12, 
+    'fahrgemeinschaft': 8, 
+    'auto allein': 5, 
+    'flugzeug': 5 
+  },
+  print: {
+    '0 seiten': 10, 
+    '1-10': 8, 
+    '1–10': 8, 
+    '11-30': 5, 
+    '30+': 3, 
+    '+30': 3
+  },
+  homeofficePts: [5, 10, 15, 20, 25, 30],
+  socialDay: 50 
 };
-const CO2_PER_PT=0.12;
-let deptChartObj=null,weekChartObj=null,weeklyData={};
+const CO2_PER_PT = 0.12;
+let deptChartObj = null, weekChartObj = null, weeklyData = {};
 
-function matchScore(map,val){
-  const v=(val||'').toLowerCase().trim();
-  for(const[k,p]of Object.entries(map))if(v.includes(k))return p;
+function matchScore(map, val) {
+  const v = (val || '').toLowerCase().trim();
+  for (const [k, p] of Object.entries(map)) if (v.includes(k)) return p;
   return null;
 }
 
-function scoreRow(row){
-  const cols=Object.keys(row);let pts=0;
-  const commuteCol=cols.find(c=>c.toLowerCase().includes('verkehrsmittel')&&c.toLowerCase().includes('arbeit'));
-  if(commuteCol){const s=matchScore(SCORE.commute,row[commuteCol]);if(s!==null)pts+=s;}
-  const travelCol=cols.find(c=>c.toLowerCase().includes('dienstreise'));
-  if(travelCol){const s=matchScore(SCORE.travel,row[travelCol]);if(s!==null)pts+=s;}
-  const homeCol=cols.find(c=>c.toLowerCase().includes('homeoffice'));
-  if(homeCol){const d=Math.min(5,Math.max(0,parseInt(row[homeCol])||0));pts+=SCORE.homeofficePts[d];}
-  const printCol=cols.find(c=>c.toLowerCase().includes('seiten')||c.toLowerCase().includes('gedruckt'));
-  if(printCol){const s=matchScore(SCORE.print,row[printCol]);if(s!==null)pts+=s;}
-  const socialCol=cols.find(c=>c.toLowerCase().includes('social'));
-  if(socialCol){const v=(row[socialCol]||'').toLowerCase();if(v.includes('ja')||v==='true'||v==='1')pts+=SCORE.socialDay;}
+function scoreRow(row) {
+  const cols = Object.keys(row); let pts = 0;
+  
+  const commuteCol = cols.find(c => c.toLowerCase().includes('verkehrsmittel') && c.toLowerCase().includes('arbeit'));
+  if (commuteCol) { const s = matchScore(SCORE.commute, row[commuteCol]); if (s !== null) pts += s; }
+  
+  const travelCol = cols.find(c => c.toLowerCase().includes('dienstreise'));
+  if (travelCol) { const s = matchScore(SCORE.travel, row[travelCol]); if (s !== null) pts += s; }
+  
+  const homeCol = cols.find(c => c.toLowerCase().includes('homeoffice'));
+  if (homeCol) { const d = Math.min(5, Math.max(0, parseInt(row[homeCol]) || 0)); pts += SCORE.homeofficePts[d]; }
+  
+  const printCol = cols.find(c => c.toLowerCase().includes('seiten') || c.toLowerCase().includes('gedruckt'));
+  if (printCol) { const s = matchScore(SCORE.print, row[printCol]); if (s !== null) pts += s; }
+  
+  const socialCol = cols.find(c => c.toLowerCase().includes('social'));
+  if (socialCol) { const v = (row[socialCol] || '').toLowerCase(); if (v.includes('ja') || v === 'true' || v === '1') pts += SCORE.socialDay; }
+  
   return pts;
 }
 
