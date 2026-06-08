@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BBBank GreenBoard 2026</title>
+<title>BBBank GreenBoard 2026 · v7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
 <header class="header">
   <div class="header-left">
     <div class="header-logo">
@@ -20,26 +19,42 @@
       <div class="header-sub">nextGen fürs Klima · Wettbewerb 2026</div>
     </div>
   </div>
-  <div class="kw-badge" id="kwBadge">KW –</div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="kw-badge" id="kwBadge">KW –</div>
+    <button class="export-btn" onclick="exportPDF()" title="Dashboard als PDF speichern">
+      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 12h10M8 3v7M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Als PDF speichern
+    </button>
+  </div>
 </header>
-
 <nav class="nav-tabs">
   <button class="nav-tab active" onclick="showTab('rangliste', this)">🏆 Rangliste</button>
+  <button class="nav-tab" onclick="showTab('team', this)">👥 Dein Team</button>
   <button class="nav-tab" onclick="showTab('challenges', this)">⚡ Challenges</button>
   <button class="nav-tab" onclick="showTab('tipps', this)">💡 Tipps & Tricks</button>
   <button class="nav-tab" onclick="showTab('punktesystem', this)">📋 Punktesystem</button>
+  <button class="nav-tab" onclick="showTab('badges', this)">🏅 Badge-Sammlung</button>
+  <button class="nav-tab" onclick="showTab('esg', this)">🌍 ESG Impact</button>
 </nav>
-
 <main class="main">
-
-  <!-- ═══════════════ RANGLISTE ═══════════════ -->
+  <div class="print-header" id="printHeader">
+    <div class="print-header-title">BBBank GreenBoard 2026 – Nachhaltigkeits-Dashboard</div>
+    <div class="print-header-sub" id="printHeaderSub">Exportiert am –</div>
+  </div>
   <div id="tab-rangliste" class="tab-content active">
-
+    <!-- NEU: Live-Impact-Zähler -->
+    <div class="live-impact-bar">
+      <div class="lic"><div class="lic-val" id="liToday">– kg</div><div class="lic-lbl">☀️ Heute gespart</div></div>
+      <div class="lic"><div class="lic-val" id="liWeek">– kg</div><div class="lic-lbl">📅 Diese Woche</div></div>
+      <div class="lic"><div class="lic-val" id="liTotal">– kg</div><div class="lic-lbl">🌍 Gesamt</div></div>
+    </div>
     <div class="metrics-grid">
       <div class="metric-card">
         <div class="metric-label">Gesamtpunkte</div>
         <div class="metric-value" id="mTotal">–</div>
         <div class="metric-sub" id="mTotalSub">Noch keine Daten</div>
+        <div id="mTotalTrend"></div>
+        <div id="mTotalCompare" class="metric-compare"></div>
         <div class="metric-icon">★</div>
       </div>
       <div class="metric-card">
@@ -52,6 +67,12 @@
         <div class="metric-label">CO₂ gespart</div>
         <div class="metric-value" id="mCO2">–<span>kg</span></div>
         <div class="metric-sub">geschätzter Wert</div>
+        <div id="mCO2Trend"></div>
+        <div class="co2-single-equiv" id="co2SingleEquiv" style="display:none;">
+          <span class="co2-equiv-single-pill" id="co2EquivPill">🚗 – km</span>
+          <button class="co2-info-btn" id="co2InfoBtn" title="Weitere Vergleiche" onclick="toggleCO2Info(event)">ℹ️</button>
+          <div class="co2-info-popup" id="co2InfoPopup"></div>
+        </div>
         <div class="metric-icon">🌱</div>
       </div>
       <div class="metric-card gold">
@@ -61,12 +82,17 @@
         <div class="metric-icon">🏆</div>
       </div>
     </div>
-
     <div class="two-col">
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">🏆 Rangliste Abteilungen</div>
-          <div class="panel-badge" id="rankBadge">0 Abteilungen</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label style="font-size:11px;color:var(--text-muted);">Mein Team:</label>
+            <select class="own-team-select" id="ownTeamSelect" onchange="renderLeaderboard(window._lastDepts||[]);renderTeamTab();">
+              <option value="">– wählen –</option>
+            </select>
+            <div class="panel-badge" id="rankBadge">0 Abteilungen</div>
+          </div>
         </div>
         <div class="panel-body">
           <div class="leaderboard" id="leaderboard">
@@ -104,18 +130,132 @@
         </div>
       </div>
     </div>
-
   </div>
+  <div id="tab-team" class="tab-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;" id="teamTabHeader">
+      <div>
+        <div style="font-size:20px;font-weight:600;color:var(--text-primary);">👥 Deine Abteilung</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Detaillierte Teamübersicht &amp; Mitglieder</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--text-muted);">Abteilung:</span>
+        <select class="own-team-select" id="ownTeamSelect2" onchange="document.getElementById('ownTeamSelect').value=this.value;renderLeaderboard(window._lastDepts||[]);renderTeamTab();">
+          <option value="">– wählen –</option>
+        </select>
+      </div>
+    </div>
 
-  <!-- ═══════════════ CHALLENGES ═══════════════ -->
+    <!-- Spotlight Hero (integrated) -->
+    <div class="spotlight-outer" id="teamSpotlightOuter" style="display:none;">
+      <div class="spotlight-card">
+        <div class="spotlight-glass">
+          <div class="spotlight-top">
+            <div>
+              <div class="spotlight-team-badge" id="spLevelBadge">🌱 Noch kein Level</div>
+              <div class="spotlight-team-name" id="spTeamName">Abteilung wählen</div>
+              <div class="spotlight-motto" id="spMotto">„Gemeinsam für eine grünere BBBank"</div>
+            </div>
+            <div class="spotlight-activity-dot">
+              <span class="sp-dot"></span>
+              <span id="spActivityLabel">Aktiv</span>
+            </div>
+          </div>
+          <div class="spotlight-grid">
+            <div>
+              <div class="spotlight-avatars" id="spAvatars"></div>
+              <div class="sp-stats" id="spStats"></div>
+            </div>
+            <div>
+              <div class="sp-level-title">Team-Level</div>
+              <div class="sp-level-badge-big" id="spLevelIco">🌱</div>
+              <div class="sp-level-name" id="spLevelName">Kein Level</div>
+              <div class="sp-prog-track"><div class="sp-prog-fill" id="spProgFill" style="width:0%"></div></div>
+              <div class="sp-prog-label" id="spProgLabel">–</div>
+            </div>
+            <div>
+              <div class="sp-challenge-title">Aktive Challenges</div>
+              <div id="spChallenges">
+                <div class="sp-challenge-item"><span class="sp-ch-dot"></span><span class="sp-ch-text">🏠 Homeoffice-Woche</span></div>
+                <div class="sp-challenge-item"><span class="sp-ch-dot"></span><span class="sp-ch-text">🚲 Fahrrad-Sprint</span></div>
+                <div class="sp-challenge-item"><span class="sp-ch-dot"></span><span class="sp-ch-text">🖨️ Papierlos-Tag</span></div>
+                <div class="sp-challenge-item"><span class="sp-ch-dot"></span><span class="sp-ch-text">🤝 Social Day</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="spotlight-band" id="spBand">
+            <div class="sp-band-cell"><div class="sp-band-val" id="spBandRank">–</div><div class="sp-band-lbl">Rang</div></div>
+            <div class="sp-band-cell"><div class="sp-band-val" id="spBandCO2">–</div><div class="sp-band-lbl">kg CO₂</div></div>
+            <div class="sp-band-cell"><div class="sp-band-val" id="spBandAvg">–</div><div class="sp-band-lbl">Pkt./Person</div></div>
+            <div class="sp-band-cell"><div class="sp-band-val" id="spBandMembers">–</div><div class="sp-band-lbl">Mitglieder</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="team-kpi-grid">
+      <div class="metric-card">
+        <div class="metric-label">Rang</div>
+        <div class="metric-value" id="tkRank" style="font-size:32px;">–</div>
+        <div class="metric-sub" id="tkRankSub">–</div>
+        <div class="rank-badge-combo"><span id="tkRankBadgePill"></span></div>
+      </div>
+      <div class="metric-card"><div class="metric-label">Ø Punkte/Person</div><div class="metric-value" id="tkAvg">–</div><div id="tkTrend"></div></div>
+      <div class="metric-card"><div class="metric-label">CO₂ gespart</div><div class="metric-value" id="tkCO2">–<span>kg</span></div><div class="metric-sub">Team-Gesamt</div></div>
+      <div class="metric-card"><div class="metric-label">Mitglieder</div><div class="metric-value" id="tkCount">–</div><div class="metric-sub">Teilnehmende</div></div>
+    </div>
+    <div class="two-col" style="margin-bottom:16px;">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">👥 Mitglieder</div>
+          <div class="panel-badge" id="tkMemberBadge">0 Personen</div>
+        </div>
+        <div class="panel-body">
+          <div class="member-search-wrap">
+            <div class="member-search-container">
+              <span class="member-search-icon">🔍</span>
+              <input type="text" class="member-search" id="memberSearch" placeholder="Namen suchen…" oninput="filterMembers(this.value)">
+            </div>
+          </div>
+          <div class="member-list" id="memberList">
+            <div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🥧 Aktionen-Breakdown</div></div>
+          <div class="panel-body" id="donutPanel">
+            <div class="empty-state"><div class="empty-state-icon">🥧</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🏅 Team-Badge Status</div></div>
+          <div class="panel-body" id="teamBadgePanel">
+            <div class="empty-state"><div class="empty-state-icon">🏅</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
+          </div>
+        </div>
+        <!-- v4: Badge-Thermometer -->
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🌡️ Badge-Stufen</div></div>
+          <div class="panel-body" id="badgeThermometerPanel">
+            <div class="empty-state"><div class="empty-state-icon">🌡️</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🎯 Nächster Meilenstein</div></div>
+          <div class="panel-body" id="teamMsPanel">
+            <div class="empty-state"><div class="empty-state-icon">🎯</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="tab-challenges" class="tab-content">
     <p class="challenges-intro">Nehmt an unseren wöchentlichen Challenges teil und sammelt extra Punkte – oder macht einfach mit bei unseren allgemeinen Aktionen für mehr Nachhaltigkeit im Büroalltag!</p>
-
     <div class="panel" style="margin-bottom:16px;">
       <div class="panel-header"><div class="panel-title">⚡ Aktuelle Punkte-Challenges</div><div class="panel-badge">Extra Punkte sichern</div></div>
       <div class="panel-body">
         <div class="challenge-grid">
-
           <div class="challenge-card type-punkte">
             <span class="challenge-type-badge">Punkte-Challenge</span>
             <div class="challenge-icon">🖨️</div>
@@ -124,7 +264,6 @@
             <div class="challenge-pts">+20 Bonuspunkte für die Abteilung</div>
             <div><span class="challenge-status status-aktiv">● Aktiv diese Woche</span></div>
           </div>
-
           <div class="challenge-card type-punkte">
             <span class="challenge-type-badge">Punkte-Challenge</span>
             <div class="challenge-icon">🚲</div>
@@ -133,7 +272,6 @@
             <div class="challenge-pts">+10 Bonuspunkte pro Person pro Tag</div>
             <div><span class="challenge-status status-bald">◌ Nächste Woche</span></div>
           </div>
-
           <div class="challenge-card type-punkte">
             <span class="challenge-type-badge">Punkte-Challenge</span>
             <div class="challenge-icon">💻</div>
@@ -142,16 +280,13 @@
             <div class="challenge-pts">+25 Bonuspunkte pro vermiedener Reise</div>
             <div><span class="challenge-status status-aktiv">● Aktiv diesen Monat</span></div>
           </div>
-
         </div>
       </div>
     </div>
-
     <div class="panel">
       <div class="panel-header"><div class="panel-title">🌱 Allgemeine Aktionen</div><div class="panel-badge">Mitmachen lohnt sich</div></div>
       <div class="panel-body">
         <div class="challenge-grid">
-
           <div class="challenge-card type-aktion">
             <span class="challenge-type-badge">Aktion</span>
             <div class="challenge-icon">☕</div>
@@ -159,15 +294,12 @@
             <div class="challenge-desc">Bringt euren eigenen Becher mit in die Teeküche. Wer diese Woche keinen Einwegbecher nutzt, macht mit!</div>
             <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
           </div>
-
           <div class="challenge-card type-aktion">
-            <span class="challenge-type-badge">Aktion</span>
             <div class="challenge-icon">💡</div>
             <div class="challenge-title">Licht aus beim Verlassen</div>
             <div class="challenge-desc">Achtet darauf dass Licht, Bildschirme und Geräte beim Verlassen des Büros oder Besprechungsraums ausgeschaltet sind.</div>
             <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
           </div>
-
           <div class="challenge-card type-aktion">
             <span class="challenge-type-badge">Aktion</span>
             <div class="challenge-icon">🌿</div>
@@ -175,7 +307,6 @@
             <div class="challenge-desc">Probiert diese Woche in der Mittagspause eine vegetarische oder vegane Option – gut für euch und fürs Klima.</div>
             <div><span class="challenge-status status-bald">◌ Startet nächste Woche</span></div>
           </div>
-
           <div class="challenge-card type-aktion">
             <span class="challenge-type-badge">Aktion</span>
             <div class="challenge-icon">♻️</div>
@@ -183,7 +314,6 @@
             <div class="challenge-desc">Schaut gemeinsam ob die Mülltrennung in eurem Bereich korrekt funktioniert und klärt Kollegen auf falls nötig.</div>
             <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
           </div>
-
           <div class="challenge-card type-aktion">
             <span class="challenge-type-badge">Aktion</span>
             <div class="challenge-icon">📧</div>
@@ -191,7 +321,6 @@
             <div class="challenge-desc">Löscht alte E-Mails und bereinigt euer Postfach – jede gespeicherte E-Mail verbraucht Serverenergie.</div>
             <div><span class="challenge-status status-aktiv">● Laufende Aktion</span></div>
           </div>
-
           <div class="challenge-card type-aktion">
             <span class="challenge-type-badge">Aktion</span>
             <div class="challenge-icon">🤝</div>
@@ -199,13 +328,10 @@
             <div class="challenge-desc">Nutzt euren jährlichen Social Day für einen ehrenamtlichen Einsatz – meldet euch beim Team und sammelt 30 Punkte!</div>
             <div><span class="challenge-status status-aktiv">● Jährlich verfügbar</span></div>
           </div>
-
         </div>
       </div>
     </div>
   </div>
-
-  <!-- ═══════════════ TIPPS ═══════════════ -->
   <div id="tab-tipps" class="tab-content">
     <div class="tips-toolbar">
       <div class="tips-filter">
@@ -219,32 +345,27 @@
     </div>
     <div class="tips-grid" id="tipsGrid"></div>
   </div>
-
- <!-- ═══════════════ PUNKTESYSTEM ═══════════════ -->
   <div id="tab-punktesystem" class="tab-content">
     <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">📋 Punktesystem Übersicht</div>
-        <div class="panel-badge">Max. 130 Punkte / Woche</div>
-      </div>
+      <div class="panel-header"><div class="panel-title">📋 Punktesystem Übersicht</div><div class="panel-badge">Max. 110 Punkte / Woche</div></div>
       <div class="panel-body">
         <div class="scoring-grid">
           <div>
-            <div class="scoring-cat-title">🚗 Anfahrtsweg (max. 20P)</div>
-            <div class="scoring-row"><span>Fahrrad / Zu Fuß</span><span class="scoring-pts">20P</span></div>
-            <div class="scoring-row"><span>ÖPNV</span><span class="scoring-pts">15P</span></div>
-            <div class="scoring-row"><span>Auto Fahrgemeinschaft</span><span class="scoring-pts">10P</span></div>
-            <div class="scoring-row"><span>Auto allein</span><span class="scoring-pts">5P</span></div>
+            <div class="scoring-cat-title">🚗 Anfahrtsweg (max. 15P)</div>
+            <div class="scoring-row"><span>Fahrrad / Zu Fuß</span><span class="scoring-pts">15P</span></div>
+            <div class="scoring-row"><span>ÖPNV</span><span class="scoring-pts">10P</span></div>
+            <div class="scoring-row"><span>Auto Fahrgemeinschaft</span><span class="scoring-pts">5P</span></div>
+            <div class="scoring-row"><span>Auto allein</span><span class="scoring-pts">0P</span></div>
           </div>
           <div>
             <div class="scoring-cat-title">✈️ Dienstreise (max. 15P)</div>
-            <div class="scoring-row"><span>Keine Dienstreise</span><span class="scoring-pts">0P</span></div>
-            <div class="scoring-row"><span>Bahn / ÖPNV</span><span class="scoring-pts">15P</span></div>
-            <div class="scoring-row"><span>Auto Fahrgemeinschaft</span><span class="scoring-pts">8P</span></div>
-            <div class="scoring-row"><span>Auto allein</span><span class="scoring-pts">5P</span></div>
-            <div class="scoring-row"><span>Flugzeug</span><span class="scoring-pts">5P</span></div>
+            <div class="scoring-row"><span>Keine Dienstreise</span><span class="scoring-pts">15P</span></div>
+            <div class="scoring-row"><span>Bahn / ÖPNV</span><span class="scoring-pts">10P</span></div>
+            <div class="scoring-row"><span>Auto Fahrgemeinschaft</span><span class="scoring-pts">5P</span></div>
+            <div class="scoring-row"><span>Auto allein</span><span class="scoring-pts">2P</span></div>
+            <div class="scoring-row"><span>Flugzeug</span><span class="scoring-pts">0P</span></div>
           </div>
-        <div>
+          <div>
             <div class="scoring-cat-title">🏠 Homeoffice (max. 35P)</div>
             <div class="scoring-row"><span>1 Tag</span><span class="scoring-pts">8P</span></div>
             <div class="scoring-row"><span>2 Tage</span><span class="scoring-pts">16P</span></div>
@@ -253,15 +374,126 @@
             <div class="scoring-row"><span>5 Tage</span><span class="scoring-pts">35P</span></div>
           </div>
           <div>
-            <div class="scoring-cat-title">🖨️ Drucken (max. 10P)</div>
-            <div class="scoring-row"><span>0 Seiten</span><span class="scoring-pts">10P</span></div>
+            <div class="scoring-cat-title">🖨️ Drucken (max. 15P)</div>
+            <div class="scoring-row"><span>0 Seiten</span><span class="scoring-pts">15P</span></div>
             <div class="scoring-row"><span>1–10 Seiten</span><span class="scoring-pts">8P</span></div>
-            <div class="scoring-row"><span>11–30 Seiten</span><span class="scoring-pts">5P</span></div>
-            <div class="scoring-row"><span>30+ Seiten</span><span class="scoring-pts">3P</span></div>
+            <div class="scoring-row"><span>11–30 Seiten</span><span class="scoring-pts">3P</span></div>
+            <div class="scoring-row"><span>30+ Seiten</span><span class="scoring-pts">0P</span></div>
             <br>
             <div class="scoring-cat-title">🤝 Social Day (1× jährlich)</div>
-            <div class="scoring-row"><span>Teilgenommen</span><span class="scoring-pts">50P</span></div>
+            <div class="scoring-row"><span>Teilgenommen</span><span class="scoring-pts">30P</span></div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       v7 PREMIUM: ESG IMPACT CENTER TAB
+       ================================================================ -->
+  <div id="tab-esg" class="tab-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div class="premium-section-title">🌍 ESG Impact Center</div>
+        <div class="premium-section-sub">Live-Kennzahlen · Klimawirkung · Nachhaltigkeitsrating</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;" id="esgLastUpdate"></div>
+    </div>
+
+    <!-- Hero mit ESG-Score Ring -->
+    <div class="esg-hero" id="esgHeroCard">
+      <div class="esg-score-wrap">
+        <canvas class="esg-score-canvas" id="esgScoreCanvas" width="150" height="150"></canvas>
+        <div class="esg-score-center">
+          <div class="esg-score-num" id="esgScoreNum">–</div>
+          <div class="esg-score-lbl">ESG-Score</div>
+        </div>
+      </div>
+      <div class="esg-hero-content">
+        <div class="esg-hero-title">BBBank nextGen fürs Klima</div>
+        <div class="esg-hero-sub">Gesamtüberblick aller Nachhaltigkeitsmaßnahmen der teilnehmenden Abteilungen</div>
+        <div class="esg-kpi-stream" id="esgStream">
+          <span class="esg-stream-chip pulse">🌱 Daten laden...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESG Rating Boxes -->
+    <div class="esg-rating-grid">
+      <div class="esg-rating-box">
+        <div class="esg-rating-ico">🌿</div>
+        <div class="esg-rating-grade" id="esgGradeE">–</div>
+        <div class="esg-rating-label">Environmental</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="esgGradeESub">CO₂ & Mobilität</div>
+      </div>
+      <div class="esg-rating-box">
+        <div class="esg-rating-ico">🤝</div>
+        <div class="esg-rating-grade" id="esgGradeS">–</div>
+        <div class="esg-rating-label">Social</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="esgGradeSSub">Teilnahme & Social Day</div>
+      </div>
+      <div class="esg-rating-box">
+        <div class="esg-rating-ico">⚙️</div>
+        <div class="esg-rating-grade" id="esgGradeG">–</div>
+        <div class="esg-rating-label">Governance</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="esgGradeGSub">Konsistenz & Aktivität</div>
+      </div>
+    </div>
+
+    <!-- 5 Impact Metriken -->
+    <div class="esg-impact-grid" id="esgImpactGrid">
+      <div class="esg-impact-card">
+        <span class="esg-impact-ico">🌍</span>
+        <div class="esg-impact-label">CO₂ Einsparung</div>
+        <div class="esg-impact-val"><span id="esgImpCO2">–</span><span>kg</span></div>
+        <div class="esg-bar-track"><div class="esg-bar-fill co2" id="esgBarCO2" style="width:0%"></div></div>
+        <div class="esg-impact-equiv" id="esgEquivCO2">≈ – Bäume/Jahr</div>
+      </div>
+      <div class="esg-impact-card">
+        <span class="esg-impact-ico">⚡</span>
+        <div class="esg-impact-label">Energie gespart</div>
+        <div class="esg-impact-val"><span id="esgImpEnergy">–</span><span>kWh</span></div>
+        <div class="esg-bar-track"><div class="esg-bar-fill energy" id="esgBarEnergy" style="width:0%"></div></div>
+        <div class="esg-impact-equiv" id="esgEquivEnergy">≈ – Haushaltsstunden</div>
+      </div>
+      <div class="esg-impact-card">
+        <span class="esg-impact-ico">📄</span>
+        <div class="esg-impact-label">Papier gespart</div>
+        <div class="esg-impact-val"><span id="esgImpPaper">–</span><span>Seiten</span></div>
+        <div class="esg-bar-track"><div class="esg-bar-fill paper" id="esgBarPaper" style="width:0%"></div></div>
+        <div class="esg-impact-equiv" id="esgEquivPaper">≈ – Bäume geschont</div>
+      </div>
+      <div class="esg-impact-card">
+        <span class="esg-impact-ico">🚲</span>
+        <div class="esg-impact-label">Mobilität</div>
+        <div class="esg-impact-val"><span id="esgImpMobility">–</span><span>km</span></div>
+        <div class="esg-bar-track"><div class="esg-bar-fill mobility" id="esgBarMobility" style="width:0%"></div></div>
+        <div class="esg-impact-equiv" id="esgEquivMobility">fossil-freie Wege</div>
+      </div>
+      <div class="esg-impact-card">
+        <span class="esg-impact-ico">💧</span>
+        <div class="esg-impact-label">Wasser gespart</div>
+        <div class="esg-impact-val"><span id="esgImpWater">–</span><span>L</span></div>
+        <div class="esg-bar-track"><div class="esg-bar-fill water" id="esgBarWater" style="width:0%"></div></div>
+        <div class="esg-impact-equiv" id="esgEquivWater">≈ – Duschgänge</div>
+      </div>
+    </div>
+
+    <!-- Charts: Trend + Kategorie-Breakdown -->
+    <div class="esg-row2">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📈 CO₂-Einsparung · Wochentrend</div>
+          <div class="panel-badge" id="esgTrendBadge">–</div>
+        </div>
+        <div class="panel-body" style="padding:1rem;">
+          <div class="chart-container" style="height:220px;"><canvas id="esgTrendChart"></canvas></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">📊 Kategorie-Impact</div></div>
+        <div class="panel-body" style="padding:1.25rem;">
+          <div id="esgCatRows"></div>
         </div>
       </div>
     </div>
@@ -269,10 +501,11 @@
 
 </main>
 
-<!-- ADD TIP MODAL -->
+<!-- ===== v4: Badge-Sammlung Tab ===== -->
+
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <div class="modal-title">💡 Neuen Tipp hinzufügen</div>
+    <div class="modal-title">Neuen Tipp hinzufügen</div>
     <div class="form-group">
       <label class="form-label">Kategorie</label>
       <select class="form-select" id="tipCat">
@@ -283,26 +516,80 @@
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label">Emoji / Icon</label>
-      <input class="form-input" id="tipIcon" placeholder="z.B. 💡 oder 🌱" maxlength="4">
+      <label class="form-label">Icon (z.B. Emoji)</label>
+      <input type="text" class="form-input" id="tipIcon" placeholder="💡">
     </div>
     <div class="form-group">
       <label class="form-label">Titel</label>
-      <input class="form-input" id="tipTitle" placeholder="Kurzer, prägnanter Titel">
+      <input type="text" class="form-input" id="tipTitle" placeholder="Titel des Tipps">
     </div>
     <div class="form-group">
       <label class="form-label">Beschreibung</label>
-      <textarea class="form-textarea" id="tipDesc" placeholder="Erklärt den Tipp in 1-2 Sätzen..."></textarea>
+      <textarea class="form-textarea" id="tipDesc" placeholder="Beschreibe den Tipp kurz..."></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
-      <button class="btn-save" onclick="saveTip()">Tipp speichern</button>
+      <button class="btn-save" onclick="saveTip()">Speichern</button>
     </div>
   </div>
 </div>
-
-<footer class="footer">BBBank GreenBoard · nextGen fürs Klima 2026 · Intern & Vertraulich</footer>
-
-<script src="script.js"></script>
-</body>
-</html>
+<!-- NEU v3: Badge-Detail-Modal -->
+<div class="badge-modal-overlay" id="badgeModalOverlay">
+  <div class="badge-modal">
+    <button class="bm-close" onclick="closeBadgeModal()">✕</button>
+    <div class="bm-header">
+      <div class="bm-ico" id="bmIco">🏆</div>
+      <div><div class="bm-title" id="bmTitle">Badge</div><div class="bm-sub" id="bmSub">–</div></div>
+    </div>
+    <div class="bm-section">
+      <div class="bm-lbl">Warum hat euer Team diesen Badge?</div>
+      <div class="bm-txt" id="bmWhy">–</div>
+    </div>
+    <div class="bm-section">
+      <div class="bm-lbl">Team-Leistung</div>
+      <div class="bm-txt" id="bmPerf">–</div>
+    </div>
+    <div class="bm-section">
+      <div class="bm-lbl">Fortschritt zum nächsten Badge</div>
+      <div class="bm-next-row">
+        <div class="bm-next-ico" id="bnIco">🎯</div>
+        <div class="bm-next-info">
+          <div class="bm-next-title" id="bnTitle">Nächster Badge</div>
+          <div class="bm-next-sub" id="bnSub">–</div>
+          <div class="bm-next-bar"><div class="bm-next-fill" id="bnFill" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="bm-section">
+      <div class="bm-lbl">Gesperrte Badges</div>
+      <div class="locked-badges" id="bmLocked"></div>
+    </div>
+  </div>
+</div>
+<!-- NEU v3: Mitglieder-Detail-Modal -->
+<div class="member-modal-overlay" id="memberModalOverlay">
+  <div class="member-modal">
+    <button class="bm-close" onclick="closeMemberModal()">✕</button>
+    <div class="bm-header">
+      <div class="bm-ico none" id="mmIco" style="font-size:18px;font-weight:700;">?</div>
+      <div><div class="bm-title" id="mmName">–</div><div class="bm-sub" id="mmDept">–</div></div>
+    </div>
+    <div class="mm-stat-grid">
+      <div class="mm-stat"><div class="mm-stat-val" id="mmPts">–</div><div class="mm-stat-lbl">Punkte</div></div>
+      <div class="mm-stat"><div class="mm-stat-val" id="mmCO2">–</div><div class="mm-stat-lbl">kg CO₂</div></div>
+      <div class="mm-stat"><div class="mm-stat-val" id="mmRank">–</div><div class="mm-stat-lbl">Team-Rang</div></div>
+    </div>
+    <div class="mm-cmp" id="mmCmp">–</div>
+    <div class="bm-section">
+      <div class="bm-lbl">Aktiver Badge</div>
+      <div class="badges-flex" id="mmBadges"></div>
+    </div>
+    <div class="bm-section" style="margin-top:0.75rem;">
+      <div class="bm-lbl">Fortschritt zum nächsten Badge</div>
+      <div id="mmProgress"></div>
+    </div>
+  </div>
+</div>
+<div class="confetti-wrap" id="confettiWrap"></div>
+<div class="ms-toast" id="msToast">🎉 <span id="msToastMsg"></span></div>
+<footer class="footer">BBBank GreenBoard · nextGen fürs Klima 2026 · v7 · Intern &amp; Vertraulich</footer>
