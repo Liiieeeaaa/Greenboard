@@ -8,6 +8,18 @@ function showTab(id, btn) {
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
 }
+function showSubTab(tabId, subId) {
+  // Hide all subpanels in this tab
+  document.querySelectorAll('#tab-'+tabId+' .subpanel').forEach(p=>p.style.display='none');
+  // Deactivate all subtab buttons in this tab
+  document.querySelectorAll('#tab-'+tabId+' .subtab-btn').forEach(b=>b.classList.remove('active'));
+  // Show target subpanel
+  const panel = document.getElementById('subpanel-'+tabId+'-'+subId);
+  if(panel) panel.style.display='block';
+  // Activate button
+  const btn = document.getElementById('subtab-'+tabId+'-'+subId);
+  if(btn) btn.classList.add('active');
+}
 const SCORE={
   commute:{'fahrrad':15,'zu fuß':15,'zu fuss':15,'öpvn':10,'öpnv':10,'fahrgemeinschaft':5,'auto allein':0},
   travel:{'keine':15,'bahn':10,'öpvn':10,'öpnv':10,'fahrgemeinschaft':5,'auto allein':2,'flugzeug':0},
@@ -24,16 +36,18 @@ function matchScore(map,val){
 }
 function scoreRow(row){
   const cols=Object.keys(row);let pts=0;
+  let commutePts=0,travelPts=0,homePts=0,printPts=0,socialPts=0;
   const commuteCol=cols.find(c=>c.toLowerCase().includes('verkehrsmittel')&&c.toLowerCase().includes('arbeit'));
-  if(commuteCol){const s=matchScore(SCORE.commute,row[commuteCol]);if(s!==null)pts+=s;}
+  if(commuteCol){const s=matchScore(SCORE.commute,row[commuteCol]);if(s!==null){pts+=s;commutePts=s;}}
   const travelCol=cols.find(c=>c.toLowerCase().includes('dienstreise'));
-  if(travelCol){const s=matchScore(SCORE.travel,row[travelCol]);if(s!==null)pts+=s;}
+  if(travelCol){const s=matchScore(SCORE.travel,row[travelCol]);if(s!==null){pts+=s;travelPts=s;}}
   const homeCol=cols.find(c=>c.toLowerCase().includes('homeoffice'));
-  if(homeCol){const d=Math.min(5,Math.max(0,parseInt(row[homeCol])||0));pts+=SCORE.homeofficePts[d];}
+  if(homeCol){const d=Math.min(5,Math.max(0,parseInt(row[homeCol])||0));homePts=SCORE.homeofficePts[d];pts+=homePts;}
   const printCol=cols.find(c=>c.toLowerCase().includes('seiten')||c.toLowerCase().includes('gedruckt'));
-  if(printCol){const s=matchScore(SCORE.print,row[printCol]);if(s!==null)pts+=s;}
+  if(printCol){const s=matchScore(SCORE.print,row[printCol]);if(s!==null){pts+=s;printPts=s;}}
   const socialCol=cols.find(c=>c.toLowerCase().includes('social'));
-  if(socialCol){const v=(row[socialCol]||'').toLowerCase();if(v.includes('ja')||v==='true'||v==='1')pts+=SCORE.socialDay;}
+  if(socialCol){const v=(row[socialCol]||'').toLowerCase();if(v.includes('ja')||v==='true'||v==='1'){pts+=SCORE.socialDay;socialPts=SCORE.socialDay;}}
+  row._commutePts=commutePts;row._travelPts=travelPts;row._homePts=homePts;row._printPts=printPts;row._socialPts=socialPts;
   return pts;
 }
 function getAbteilung(row){const col=Object.keys(row).find(c=>c.toLowerCase().includes('abteilung'));return col?(row[col]||'').trim():null;}
@@ -156,7 +170,7 @@ function processData(rows){
   document.getElementById('mCO2').innerHTML=Math.round(totalPts*CO2_PER_PT)+'<span>kg</span>';
   if(depts.length){document.getElementById('mLeader').textContent=depts[0].name;document.getElementById('mLeaderSub').textContent=depts[0].avg+' Pkt./Person';}
   document.getElementById('rankBadge').textContent=depts.length+' Abteilungen';
-  renderLeaderboard(depts);renderDeptChart(depts);renderWeekTabs(depts);
+  renderLeaderboard(depts);renderPodium(depts);renderWeekTabs(depts);
 
   /* === NEU: Live-Impact-Zähler === */
   const co2Total=Math.round(totalPts*CO2_PER_PT);
@@ -235,6 +249,9 @@ function processData(rows){
   /* === NEU v3: Cache + Team-Selektoren befüllen === */
   _allDepts=depts;
   _allRows=deduped.map(row=>({...row,_name:getName(row),_dept:getAbteilung(row),_pts:scoreRow(row)}));
+  window._allDepts=_allDepts; window._allRows=_allRows;
+  /* Profil-Auswahl befüllen */
+  populateProfilSelect();
   const selectors=['ownTeamSelect','ownTeamSelect2'];
   selectors.forEach(id=>{
     const sel=document.getElementById(id);if(!sel)return;
@@ -298,10 +315,71 @@ function renderLeaderboard(depts){
   }).join('');
 }
 const palette=['#c8a84b','#2d8c34','#a0674a','#5ec466','#1a4d1e'];
-function renderDeptChart(depts){
-  const ctx=document.getElementById('deptChart');
-  if(deptChartObj)deptChartObj.destroy();if(!depts.length)return;
-  deptChartObj=new Chart(ctx,{type:'bar',data:{labels:depts.map(d=>d.name),datasets:[{data:depts.map(d=>d.avg),backgroundColor:depts.map((_,i)=>palette[i%palette.length]),borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' Pkt./Person'}}},scales:{x:{grid:{display:false},ticks:{color:'#7a9b7d',font:{family:'DM Sans'}}},y:{grid:{color:'rgba(45,140,52,0.08)'},ticks:{color:'#7a9b7d',font:{family:'DM Mono'}},beginAtZero:true}}}});
+function renderPodium(depts){
+  const el=document.getElementById('podiumContainer');
+  if(!el||!depts.length)return;
+  const top3=depts.slice(0,3);
+  const rest=depts.slice(3);
+  const weeks=Object.keys(weeklyData).sort();
+  const lastW=weeks[weeks.length-1],prevW=weeks[weeks.length-2];
+  // badge label
+  const pb=document.getElementById('podestBadge');
+  if(pb)pb.textContent=depts.length+' Abteilungen';
+  // Podest-Höhen: 1.Platz höher als 2., 2. höher als 3.
+  const heights={1:110,2:78,3:56};
+  // Reihenfolge im Podest: links=2, mitte=1, rechts=3
+  const order=top3.length>=3?[top3[1],top3[0],top3[2]]
+             :top3.length===2?[top3[1],top3[0],null]
+             :[null,top3[0],null];
+  const posClass=['p2','p1','p3'];
+  const posRank=[2,1,3];
+  const medals=['🥈','🥇','🥉'];
+  const colorsArr=[_teamColors[1]||'#2d8c34',_teamColors[0]||'#1f6b24',_teamColors[2]||'#a0674a'];
+  function trendFor(name){
+    if(!lastW||!prevW)return'';
+    const la=weeklyData[lastW]?.[name],pr=weeklyData[prevW]?.[name];
+    if(!la||!pr||pr.count<=0)return'';
+    const d=Math.round(((Math.round(la.points/la.count)-Math.round(pr.points/pr.count))/Math.max(1,Math.round(pr.points/pr.count)))*100);
+    return`<span class="dept-trend-chip ${d>=0?'up':'down'}" style="font-size:10px;">${d>=0?'▲':'▼'}${Math.abs(d)}%</span>`;
+  }
+  // Build columns HTML
+  const colsHtml=order.map((d,idx)=>{
+    if(!d)return'<div style="flex:1"></div>';
+    const pc=posClass[idx],rank=posRank[idx],medal=medals[idx];
+    const av=_teamAvatars[d.name];
+    const init=d.name.split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
+    const avHtml=av
+      ?`<img src="${av}" class="podium-av ${pc}" style="object-fit:cover;" alt="${d.name}">`
+      :`<div class="podium-av ${pc}" style="background:${colorsArr[idx]}">${init}</div>`;
+    return`<div class="podium-col">
+      <div class="podium-avatar-zone">
+        <div class="podium-medal">${medal}</div>
+        ${avHtml}
+      </div>
+      <div class="podium-name" title="${d.name}">${d.name}</div>
+      <div class="podium-pts">${d.avg} Pkt./Person</div>
+      <div class="podium-step ${pc}" data-h="${heights[rank]}">
+        <span class="podium-step-num ${pc}">${rank}</span>
+      </div>
+    </div>`;
+  }).join('');
+  // Rest rows
+  const restHtml=rest.length?`<div class="podium-rest">${rest.map((d,i)=>{
+    const rank=i+4;
+    return`<div class="podium-rest-row">
+      <span class="podium-rest-rank">${rank}</span>
+      <span class="podium-rest-name" title="${d.name}">${d.name}</span>
+      <span class="podium-rest-trend">${trendFor(d.name)}</span>
+      <span class="podium-rest-pts">${d.avg} Pkt.</span>
+    </div>`;
+  }).join('')}</div>`:''
+  el.innerHTML=`<div class="podium-stage">${colsHtml}</div><div class="podium-base"></div>${restHtml}`;
+  // Animate step heights from 0 to target
+  setTimeout(()=>{
+    el.querySelectorAll('.podium-step[data-h]').forEach(s=>{
+      s.style.height=s.dataset.h+'px';
+    });
+  },80);
 }
 function renderWeekTabs(depts){
   const weeks=Object.keys(weeklyData).sort(),tabsEl=document.getElementById('weekTabs');
@@ -1232,49 +1310,279 @@ function renderSpotlight(){
       const tp=_allDepts.reduce((s,d)=>s+d.total,0);
       renderESGImpact(_allDepts,Math.round(tp*0.12),_allRows);
     }
-    if(name==='team') renderSpotlight();
+    if(name==='team'){ renderSpotlight(); if(_allDepts.length) renderTeamTab(); }
+    if(name==='profil'){ renderProfil(); }
   };
 })();
+/* ── Einstellungen: Dark Mode ─────────────────────────────── */
+function applyDarkMode(on){
+  document.body.classList.toggle('dark-mode', on);
+  localStorage.setItem('gb_darkmode', on?'1':'0');
+}
+function applyCompact(on){
+  document.body.classList.toggle('compact-mode', on);
+  localStorage.setItem('gb_compact', on?'1':'0');
+}
 
+/* ── Anonymer Modus ──────────────────────────────────────── */
+window._anonymMode = false;
+window._hideEmail = true;
+function applyAnonym(on){
+  window._anonymMode = on;
+  localStorage.setItem('gb_anonym', on?'1':'0');
+  // Re-render leaderboard if data present
+  if(window._allDepts && window._allDepts.length) renderLeaderboard(window._allDepts);
+}
+function anonymizeName(name, idx){
+  if(!window._anonymMode) return name;
+  return 'Mitglied #' + String(idx+1).padStart(2,'0');
+}
 
-// Inject badge tab content after main loads
-document.addEventListener('DOMContentLoaded', function() {
-  const main = document.querySelector('main.main');
-  const badgeTabDiv = document.createElement('div');
-  badgeTabDiv.id = 'tab-badges';
-  badgeTabDiv.className = 'tab-content';
-  badgeTabDiv.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
-      <div>
-        <div style="font-size:20px;font-weight:600;color:var(--text-primary);">🏅 Badge-Sammlung</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Alle sammelbaren Badges · Freischaltbedingungen · Fortschritt</div>
+/* ── CSV Export ──────────────────────────────────────────── */
+function exportCSV(){
+  if(!window._allDepts || !window._allDepts.length){ alert('Bitte zuerst Daten laden.'); return; }
+  const rows = [['Rang','Abteilung','Gesamtpunkte','Ø Punkte/Person','Mitglieder','CO₂ (kg)']];
+  window._allDepts.forEach((d,i)=>{
+    rows.push([i+1, d.name, d.total, d.avg, d.count, Math.round(d.total*0.12)]);
+  });
+  const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='greenboard_rangliste.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ── Mein Profil ─────────────────────────────────────────── */
+window._profilImg = null;
+function handleProfilImg(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    window._profilImg = ev.target.result;
+    const av = document.getElementById('profilAvatar');
+    av.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    localStorage.setItem('gb_profilimg', ev.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function populateProfilSelect(){
+  const sel = document.getElementById('profilPersonSelect');
+  if(!sel || !window._allRows || !window._allRows.length) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">– Person wählen –</option>';
+  const names = [...new Set(window._allRows.map(r=>r._name).filter(Boolean))].sort();
+  names.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
+  if(current && names.includes(current)) sel.value = current;
+}
+
+const PROFIL_LEVELS = [
+  {key:'none',   icon:'🌱', label:'Starter',  minPts:0,   color:'#7a9b7d'},
+  {key:'bronze', icon:'🥉', label:'Bronze',   minPts:50,  color:'#a0674a'},
+  {key:'silver', icon:'🥈', label:'Silber',   minPts:150, color:'#8a8fa8'},
+  {key:'gold',   icon:'🥇', label:'Gold',     minPts:300, color:'#c8a84b'},
+  {key:'platin', icon:'💎', label:'Platin',   minPts:500, color:'#1f6b24'},
+];
+
+function renderProfil(){
+  populateProfilSelect();
+  const sel = document.getElementById('profilPersonSelect');
+  const name = sel ? sel.value : '';
+  const content = document.getElementById('profilContent');
+  const empty = document.getElementById('profilEmpty');
+  if(!name || !window._allRows || !window._allRows.length){
+    if(content) content.style.display='none';
+    if(empty) empty.style.display='block';
+    // reset hero
+    document.getElementById('profilName').textContent='– Bitte Person wählen –';
+    document.getElementById('profilDept').textContent='Keine Abteilung';
+    document.getElementById('profilBadgeChip').textContent='🌱 Kein Level';
+    document.getElementById('phPts').textContent='–';
+    document.getElementById('phRank').textContent='–';
+    document.getElementById('phCO2').textContent='–';
+    return;
+  }
+  if(content) content.style.display='block';
+  if(empty) empty.style.display='none';
+
+  // Restore profil img
+  const savedImg = localStorage.getItem('gb_profilimg');
+  if(savedImg){
+    const av=document.getElementById('profilAvatar');
+    av.innerHTML=`<img src="${savedImg}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+  }
+
+  const rows = window._allRows.filter(r=>r._name===name);
+  const dept = rows[0]?._dept || '–';
+  const totalPts = rows.reduce((s,r)=>s+r._pts,0);
+  const co2 = Math.round(totalPts*0.12);
+
+  // Team rank
+  const teamRows = window._allRows.filter(r=>r._dept===dept).sort((a,b)=>b._pts-a._pts);
+  const uniqueNames=[...new Set(teamRows.map(r=>r._name))];
+  // Sum pts per person in team
+  const personPts={};
+  window._allRows.filter(r=>r._dept===dept).forEach(r=>{personPts[r._name]=(personPts[r._name]||0)+r._pts;});
+  const sorted=Object.entries(personPts).sort((a,b)=>b[1]-a[1]);
+  const teamRankIdx=sorted.findIndex(([n])=>n===name);
+  const teamRank=teamRankIdx>=0?teamRankIdx+1:'–';
+
+  // Level
+  const lvl = [...PROFIL_LEVELS].reverse().find(l=>totalPts>=l.minPts)||PROFIL_LEVELS[0];
+  const nextLvl = PROFIL_LEVELS.find(l=>l.minPts>totalPts);
+
+  // Hero
+  document.getElementById('profilName').textContent=name;
+  document.getElementById('profilDept').textContent=dept;
+  document.getElementById('profilBadgeChip').textContent=lvl.icon+' '+lvl.label+'-Level';
+  document.getElementById('phPts').textContent=totalPts;
+  document.getElementById('phRank').textContent=teamRank!=='–'?'#'+teamRank:'–';
+  document.getElementById('phCO2').textContent=co2;
+
+  // KPI cards
+  document.getElementById('ppTotal').textContent=totalPts;
+  document.getElementById('ppTotalSub').textContent=rows.length+' Einträge gesamt';
+  document.getElementById('ppCO2').textContent=co2;
+  document.getElementById('ppTeamRank').textContent=teamRank!=='–'?'#'+teamRank:'–';
+  document.getElementById('ppTeamRankSub').textContent='von '+sorted.length+' Personen in '+dept;
+  document.getElementById('ppLevel').textContent=lvl.icon+' '+lvl.label;
+  document.getElementById('ppLevelSub').textContent=nextLvl?'Noch '+(nextLvl.minPts-totalPts)+' Pkt. bis '+nextLvl.label:'Maximales Level erreicht! 🏆';
+
+  // Einsparungen
+  const maxPts=rows.length*110;
+  const savings=[
+    {ico:'🚗',label:'Mobilität (Anfahrt)',val:rows.reduce((s,r)=>s+(r._commutePts||0),0),max:rows.length*15},
+    {ico:'🏠',label:'Homeoffice',val:rows.reduce((s,r)=>s+(r._homePts||0),0),max:rows.length*35},
+    {ico:'🖨️',label:'Drucken gespart',val:rows.reduce((s,r)=>s+(r._printPts||0),0),max:rows.length*15},
+    {ico:'✈️',label:'Dienstreisen',val:rows.reduce((s,r)=>s+(r._travelPts||0),0),max:rows.length*15},
+  ];
+  const savEl=document.getElementById('profilSavings');
+  savEl.innerHTML=savings.map(s=>{
+    const pct=s.max>0?Math.round((s.val/s.max)*100):0;
+    return`<div class="ps-row">
+      <div class="ps-ico">${s.ico}</div>
+      <div class="ps-info">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div class="ps-label">${s.label}</div>
+          <div class="ps-val">${s.val}/${s.max} Pkt</div>
+        </div>
+        <div class="ps-bar-track"><div class="ps-bar-fill" style="width:${pct}%"></div></div>
       </div>
-    </div>
-    <!-- Sammelstatus-Leiste -->
-    <div class="badge-collect-bar" id="badgeCollectBar">
-      <div class="bcb-text">
-        <div class="bcb-title" id="bcbTitle">0 von 40 Badges gesammelt</div>
-        <div class="bcb-subtitle" id="bcbMotiv">Sammle deinen ersten Badge!</div>
+    </div>`;
+  }).join('');
+
+  // Verbesserungspotenzial
+  const tips=[];
+  const avgCommute=rows.length>0?rows.reduce((s,r)=>s+(r._commutePts||0),0)/rows.length:0;
+  if(avgCommute<10) tips.push({ico:'🚲',title:'Öfter Rad oder ÖPNV nutzen',sub:'Fahrrad/zu Fuß = 15 Pkt., ÖPNV = 10 Pkt. pro Eintrag',gain:'+'+Math.round((15-avgCommute)*rows.length)+' mögliche Pkt.'});
+  const avgHome=rows.length>0?rows.reduce((s,r)=>s+(r._homePts||0),0)/rows.length:0;
+  if(avgHome<20) tips.push({ico:'🏠',title:'Mehr Homeoffice-Tage einplanen',sub:'3 Tage HO = 24 Pkt. pro Eintrag',gain:'+'+Math.round((24-avgHome)*rows.length)+' mögliche Pkt.'});
+  const avgPrint=rows.length>0?rows.reduce((s,r)=>s+(r._printPts||0),0)/rows.length:0;
+  if(avgPrint<10) tips.push({ico:'📄',title:'Weniger drucken',sub:'Papierlos = 15 Pkt. pro Eintrag',gain:'+'+Math.round((15-avgPrint)*rows.length)+' mögliche Pkt.'});
+  const hasSocial=rows.some(r=>r._socialPts>0);
+  if(!hasSocial) tips.push({ico:'🤝',title:'Social Day nutzen',sub:'Einmaliger Bonus: 30 Punkte',gain:'+30 Pkt.'});
+  if(!tips.length) tips.push({ico:'🏆',title:'Super! Kaum Verbesserungspotenzial',sub:'Du schöpfst deine Punkte bereits sehr gut aus.',gain:''});
+  document.getElementById('profilTips').innerHTML=tips.map(t=>`
+    <div class="pt-row">
+      <div class="pt-ico">${t.ico}</div>
+      <div class="pt-info">
+        <div class="pt-title">${t.title}</div>
+        <div class="pt-sub">${t.sub}</div>
+        ${t.gain?`<div class="pt-gain">${t.gain}</div>`:''}
       </div>
-      <div class="bcb-bar-wrap">
-        <div class="bcb-track"><div class="bcb-fill" id="bcbFill" style="width:0%"></div></div>
-        <div class="bcb-pct" id="bcbPct">0%</div>
-      </div>
-    </div>
-    <!-- Kategorie-Filter -->
-    <div class="badge-cat-tabs" id="badgeCatTabs">
-      <button class="badge-cat-tab active" onclick="filterBadgeCat('alle',this)">Alle</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('mobilitaet',this)">🚲 Mobilität</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('papier',this)">📄 Papier & Digital</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('energie',this)">⚡ Energie</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('ernaehrung',this)">🥗 Ernährung</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('aktivitaet',this)">🔥 Aktivität & Serie</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('teamleistung',this)">👥 Teamleistung</button>
-      <button class="badge-cat-tab" onclick="filterBadgeCat('spezial',this)">⭐ Spezialbadges</button>
-    </div>
-    <!-- Badge-Grid -->
-    <div id="badgeCollectionGrid" class="badge-collection-grid"></div>
-  `;
-  main.appendChild(badgeTabDiv);
-  renderBadgeCollection('alle');
+    </div>`).join('');
+
+  // Level track
+  const ltEl=document.getElementById('profilLevelTrack');
+  ltEl.innerHTML=PROFIL_LEVELS.map(l=>{
+    const isReached=totalPts>=l.minPts;
+    const isCurrent=l.key===lvl.key;
+    const cls=isCurrent?'current':isReached?'reached':'locked';
+    return`<div class="plt-step">
+      <div class="plt-dot ${cls}">${l.icon}</div>
+      <div class="plt-lbl ${cls}">${l.label}</div>
+      <div class="plt-pts">${l.minPts} Pkt.</div>
+    </div>`;
+  }).join('');
+
+  // Wochen
+  const weekMap={};
+  rows.forEach(r=>{
+    const kw=r._kw||'?';
+    if(!weekMap[kw]) weekMap[kw]={pts:0,date:r._date||''};
+    weekMap[kw].pts+=r._pts;
+  });
+  const weekEntries=Object.entries(weekMap).sort((a,b)=>b[0].localeCompare(a[0]));
+  const maxWkPts=Math.max(...weekEntries.map(([,v])=>v.pts),1);
+  document.getElementById('ppWeeksBadge').textContent=weekEntries.length+' Wochen';
+  document.getElementById('profilWeeks').innerHTML=weekEntries.map(([kw,v])=>`
+    <div class="profil-week-row">
+      <div class="pw-kw">KW ${kw}</div>
+      <div class="pw-bar-wrap"><div class="pw-bar-track"><div class="pw-bar-fill" style="width:${Math.round(v.pts/maxWkPts*100)}%"></div></div></div>
+      <div class="pw-pts">${v.pts}</div>
+      <div class="pw-date">${v.date}</div>
+    </div>`).join('') || '<div class="empty-state"><div class="empty-state-text">Keine Wochen-Daten</div></div>';
+}
+
+/* ── Restore settings from localStorage ─────────────────── */
+document.addEventListener('DOMContentLoaded',()=>{
+  const dm=localStorage.getItem('gb_darkmode');
+  const cp=localStorage.getItem('gb_compact');
+  const an=localStorage.getItem('gb_anonym');
+  const img=localStorage.getItem('gb_profilimg');
+  if(dm==='1'){document.getElementById('settingDarkMode').checked=true;applyDarkMode(true);}
+  if(cp==='1'){document.getElementById('settingCompact').checked=true;applyCompact(true);}
+  if(an==='1'){document.getElementById('settingAnonym').checked=true;applyAnonym(true);}
+  if(img){window._profilImg=img;}
+  // Restore team image
+  const timg=localStorage.getItem('gb_teamimg');
+  if(timg){applyTeamImg(timg);}
+  // Restore motto
+  const motto=localStorage.getItem('gb_motto');
+  if(motto){document.getElementById('spMotto').textContent=motto;}
 });
+
+/* ── Team Profilbild ─────────────────────────────────────── */
+function handleTeamImg(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    localStorage.setItem('gb_teamimg',ev.target.result);
+    applyTeamImg(ev.target.result);
+  };
+  r.readAsDataURL(file);
+}
+function applyTeamImg(src){
+  const el=document.getElementById('teamAvatarCircle');
+  if(!el)return;
+  el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+}
+
+/* ── Team Motto inline bearbeiten ────────────────────────── */
+function startMottoEdit(){
+  const cur=document.getElementById('spMotto').textContent;
+  document.getElementById('mottoInput').value=cur.replace(/^„|"$/g,'');
+  document.getElementById('spMotto').style.display='none';
+  document.querySelector('[onclick="startMottoEdit()"]').style.display='none';
+  document.getElementById('mottoEditWrap').style.display='flex';
+  document.getElementById('mottoInput').focus();
+}
+function saveMottoEdit(){
+  const val=document.getElementById('mottoInput').value.trim()||'Gemeinsam für eine grünere BBBank';
+  const text='„'+val+'"';
+  document.getElementById('spMotto').textContent=text;
+  localStorage.setItem('gb_motto',text);
+  cancelMottoEdit();
+}
+function cancelMottoEdit(){
+  document.getElementById('mottoEditWrap').style.display='none';
+  document.getElementById('spMotto').style.display='';
+  const editBtn=document.querySelector('[onclick="startMottoEdit()"]');
+  if(editBtn)editBtn.style.display='';
+}
+
