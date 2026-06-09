@@ -1422,14 +1422,19 @@ function renderProfil(){
   const co2 = Math.round(totalPts*0.12);
 
   // Team rank
-  const teamRows = window._allRows.filter(r=>r._dept===dept).sort((a,b)=>b._pts-a._pts);
-  const uniqueNames=[...new Set(teamRows.map(r=>r._name))];
-  // Sum pts per person in team
   const personPts={};
   window._allRows.filter(r=>r._dept===dept).forEach(r=>{personPts[r._name]=(personPts[r._name]||0)+r._pts;});
   const sorted=Object.entries(personPts).sort((a,b)=>b[1]-a[1]);
   const teamRankIdx=sorted.findIndex(([n])=>n===name);
   const teamRank=teamRankIdx>=0?teamRankIdx+1:'–';
+
+  // Global rank (alle Personen über alle Abteilungen)
+  const globalPts={};
+  window._allRows.forEach(r=>{globalPts[r._name]=(globalPts[r._name]||0)+r._pts;});
+  const globalSorted=Object.entries(globalPts).sort((a,b)=>b[1]-a[1]);
+  const globalRankIdx=globalSorted.findIndex(([n])=>n===name);
+  const globalRank=globalRankIdx>=0?globalRankIdx+1:'–';
+  const globalTotal=globalSorted.length;
 
   // Level
   const lvl = [...PROFIL_LEVELS].reverse().find(l=>totalPts>=l.minPts)||PROFIL_LEVELS[0];
@@ -1441,6 +1446,7 @@ function renderProfil(){
   document.getElementById('profilBadgeChip').textContent=lvl.icon+' '+lvl.label+'-Level';
   document.getElementById('phPts').textContent=totalPts;
   document.getElementById('phRank').textContent=teamRank!=='–'?'#'+teamRank:'–';
+  document.getElementById('phGlobalRank').textContent=globalRank!=='–'?'#'+globalRank:'–';
   document.getElementById('phCO2').textContent=co2;
 
   // KPI cards
@@ -1449,6 +1455,8 @@ function renderProfil(){
   document.getElementById('ppCO2').textContent=co2;
   document.getElementById('ppTeamRank').textContent=teamRank!=='–'?'#'+teamRank:'–';
   document.getElementById('ppTeamRankSub').textContent='von '+sorted.length+' Personen in '+dept;
+  document.getElementById('ppGlobalRank').textContent=globalRank!=='–'?'#'+globalRank:'–';
+  document.getElementById('ppGlobalRankSub').textContent='von '+globalTotal+' Teilnehmenden gesamt';
   document.getElementById('ppLevel').textContent=lvl.icon+' '+lvl.label;
   document.getElementById('ppLevelSub').textContent=nextLvl?'Noch '+(nextLvl.minPts-totalPts)+' Pkt. bis '+nextLvl.label:'Maximales Level erreicht! 🏆';
 
@@ -1506,6 +1514,42 @@ function renderProfil(){
       <div class="plt-dot ${cls}">${l.icon}</div>
       <div class="plt-lbl ${cls}">${l.label}</div>
       <div class="plt-pts">${l.minPts} Pkt.</div>
+    </div>`;
+  }).join('');
+
+  // ── Persönliche Badges ──────────────────────────────────
+  const weeksActive=Object.keys((()=>{const m={};rows.forEach(r=>{if(r._kw)m[r._kw]=1;});return m;})()).length;
+  const isPaperless=rows.some(r=>r._printPts>=15);
+  const hasBike=rows.some(r=>r._commutePts>=15);
+  const hasHome3=rows.some(r=>r._homePts>=24);
+  const hasSocialDay=rows.some(r=>(r._socialPts||0)>0);
+  const topGlobal10pct=globalTotal>0&&globalRank!=='–'&&(globalRank/globalTotal)<=0.1;
+  const topTeam1=teamRank===1;
+
+  const PROFIL_BADGES=[
+    {ico:'🚀',name:'Starter',cond:'Erste Punkte gesammelt',fn:()=>totalPts>0},
+    {ico:'🌿',name:'Grüner Daumen',cond:'50+ Punkte erreicht',fn:()=>totalPts>=50},
+    {ico:'🌳',name:'Klimaschützer',cond:'150+ Punkte erreicht',fn:()=>totalPts>=150},
+    {ico:'💎',name:'Platin-Player',cond:'500+ Punkte erreicht',fn:()=>totalPts>=500},
+    {ico:'📄',name:'Papierlos-Profi',cond:'Einmal komplett papierlos',fn:()=>isPaperless},
+    {ico:'🚲',name:'Pedalritter',cond:'Mit Fahrrad/zu Fuß gependelt',fn:()=>hasBike},
+    {ico:'🏠',name:'Homeoffice-Hero',cond:'3 Tage HO in einer Woche',fn:()=>hasHome3},
+    {ico:'🤝',name:'Social Star',cond:'Social Day absolviert',fn:()=>hasSocialDay},
+    {ico:'📅',name:'Konsistent',cond:'3+ Wochen aktiv',fn:()=>weeksActive>=3},
+    {ico:'🔥',name:'Streak-Master',cond:'5+ Wochen aktiv',fn:()=>weeksActive>=5},
+    {ico:'🏆',name:'Team-Champion',cond:'Platz 1 im Team',fn:()=>topTeam1},
+    {ico:'🌍',name:'Global Top 10%',cond:'Top 10% aller Teilnehmer',fn:()=>topGlobal10pct},
+  ];
+
+  const unlockedBadges=PROFIL_BADGES.filter(b=>b.fn());
+  document.getElementById('ppBadgeCount').textContent=unlockedBadges.length+' / '+PROFIL_BADGES.length+' freigeschaltet';
+  document.getElementById('profilBadgesGrid').innerHTML=PROFIL_BADGES.map(b=>{
+    const ok=b.fn();
+    return`<div class="profil-badge-card ${ok?'unlocked':'locked'}">
+      <div class="pbc-ico">${b.ico}</div>
+      <div class="pbc-name">${b.name}</div>
+      <div class="pbc-cond">${b.cond}</div>
+      <span class="pbc-chip ${ok?'unlocked':'locked'}">${ok?'✓ Freigeschaltet':'Gesperrt'}</span>
     </div>`;
   }).join('');
 
@@ -1585,4 +1629,3 @@ function cancelMottoEdit(){
   const editBtn=document.querySelector('[onclick="startMottoEdit()"]');
   if(editBtn)editBtn.style.display='';
 }
-
