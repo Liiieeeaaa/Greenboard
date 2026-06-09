@@ -6,7 +6,7 @@
 <title>BBBank GreenBoard 2026 · v7</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="greenboard_v12.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="header">
@@ -608,6 +608,7 @@
       <div class="profil-hero-stats" id="profilHeroStats">
         <div class="ph-stat"><div class="ph-val" id="phPts">–</div><div class="ph-lbl">Punkte</div></div>
         <div class="ph-stat"><div class="ph-val" id="phRank">–</div><div class="ph-lbl">Team-Rang</div></div>
+        <div class="ph-stat ph-stat-global"><div class="ph-val" id="phGlobalRank">–</div><div class="ph-lbl">🌍 Global-Rang</div></div>
         <div class="ph-stat"><div class="ph-val" id="phCO2">–</div><div class="ph-lbl">kg CO₂</div></div>
       </div>
     </div>
@@ -627,7 +628,7 @@
 
     <div id="profilContent" style="display:none;">
       <!-- KPIs -->
-      <div class="metrics-grid" style="margin-bottom:16px;">
+      <div class="metrics-grid profil-metrics-grid" style="margin-bottom:16px;">
         <div class="metric-card">
           <div class="metric-label">Gesamtpunkte</div>
           <div class="metric-value" id="ppTotal">–</div>
@@ -643,10 +644,27 @@
           <div class="metric-value" id="ppTeamRank">–</div>
           <div class="metric-sub" id="ppTeamRankSub">–</div>
         </div>
+        <div class="metric-card" style="border-top:3px solid #3b82f6;">
+          <div class="metric-label">🌍 Globaler Rang</div>
+          <div class="metric-value" id="ppGlobalRank" style="color:#2563eb;">–</div>
+          <div class="metric-sub" id="ppGlobalRankSub">–</div>
+          <div class="metric-icon"><svg style="width:28px;height:28px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        </div>
         <div class="metric-card gold">
           <div class="metric-label">Level</div>
           <div class="metric-value" id="ppLevel" style="font-size:20px;">–</div>
           <div class="metric-sub" id="ppLevelSub">–</div>
+        </div>
+      </div>
+
+      <!-- Persönliche Badges -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">🏅 Meine Badges</div>
+          <div class="panel-badge" id="ppBadgeCount">0 freigeschaltet</div>
+        </div>
+        <div class="panel-body">
+          <div id="profilBadgesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;"></div>
         </div>
       </div>
 
@@ -893,6 +911,4 @@
 <div class="confetti-wrap" id="confettiWrap"></div>
 <div class="ms-toast" id="msToast">🎉 <span id="msToastMsg"></span></div>
 <footer class="footer">BBBank GreenBoard · nextGen fürs Klima 2026 · v11 · Intern &amp; Vertraulich</footer>
-<script src="greenboard_v12.js"></script>
-</body>
-</html>
+<script src="script.js"></script>
