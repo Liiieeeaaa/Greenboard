@@ -1,3 +1,48 @@
+/* ══════════════════════════════════════════════════════════
+   ADMIN-BEREICH
+   Passwort hier ändern:
+   ══════════════════════════════════════════════════════════ */
+const ADMIN_PASSWORD = 'greenboard2026';
+
+function openAdminLogin(){
+  // Wenn schon eingeloggt: einfach Upload-Bereich zeigen/scrollen
+  if(sessionStorage.getItem('gb_admin')==='1'){
+    document.getElementById('adminUploadOuter').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  document.getElementById('adminLoginOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPwInput').focus(),120);
+}
+
+function closeAdminLogin(){
+  document.getElementById('adminLoginOverlay').classList.remove('open');
+  document.getElementById('adminPwError').style.display='none';
+  document.getElementById('adminPwInput').value='';
+}
+
+function checkAdminPassword(){
+  if(document.getElementById('adminPwInput').value===ADMIN_PASSWORD){
+    sessionStorage.setItem('gb_admin','1');
+    closeAdminLogin();
+    showAdminArea(true);
+  } else {
+    document.getElementById('adminPwError').style.display='block';
+    document.getElementById('adminPwInput').value='';
+    document.getElementById('adminPwInput').focus();
+  }
+}
+
+function showAdminArea(show){
+  const upload=document.getElementById('adminUploadOuter');
+  const chip=document.getElementById('adminChip');
+  if(upload)upload.style.display=show?'block':'none';
+  if(chip)chip.style.display=show?'flex':'none';
+}
+
+function adminLogout(){
+  sessionStorage.removeItem('gb_admin');
+  showAdminArea(false);
+}
 const now = new Date();
 const jan1 = new Date(now.getFullYear(),0,1);
 const kw = Math.ceil(((now-jan1)/86400000+jan1.getDay()+1)/7);
@@ -1841,7 +1886,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const it=_ls.getItem('gb_infotooltips');
   if(it==='0'){document.getElementById('settingInfoTooltips').checked=false;applyInfoTooltips(false);}
   if(an==='1'){document.getElementById('settingAnonym').checked=true;applyAnonym(true);}
-  if(he==='0'){document.getElementById('settingHideEmail').checked=false;applyHideEmail(false);}
+if(he==='0'){document.getElementById('settingHideEmail').checked=false;applyHideEmail(false);}
   else{window._hideEmail=true;}
 
   // Gespeicherte Excel-Daten wiederherstellen
@@ -1854,7 +1899,6 @@ document.addEventListener('DOMContentLoaded',()=>{
         const savedDate=_ls.getItem('gb_excelDate')||'';
         const st=document.getElementById('fileStatus');
         if(st)st.innerHTML=`<div class="validation-box"><div class="validation-header ok">✅ Daten geladen (${savedDate}) · ${rows.length} Einträge · <a href="#" onclick="clearSavedData(event)" style="color:var(--green-700);margin-left:8px;">Löschen</a></div></div>`;
-        // Gespeichertes Team wiederherstellen
         const savedTeam=_ls.getItem('gb_selectedTeam');
         if(savedTeam){
           ['ownTeamSelect','ownTeamSelect2'].forEach(id=>{
@@ -1866,6 +1910,11 @@ document.addEventListener('DOMContentLoaded',()=>{
       }
     }catch(e){_ls.removeItem('gb_excelData');}
   }
+
+  // Admin-Session wiederherstellen (bleibt bis Tab geschlossen wird)
+  if(sessionStorage.getItem('gb_admin')==='1') showAdminArea(true);
+  // Enter-Taste im Passwort-Feld
+  document.getElementById('adminPwInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')checkAdminPassword();});
 });
 
 function clearSavedData(e){
