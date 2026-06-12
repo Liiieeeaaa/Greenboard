@@ -19,8 +19,9 @@
       <div class="header-sub">nextGen fürs Klima · Wettbewerb 2026</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:10px;">
+ <div style="display:flex;align-items:center;gap:10px;">
     <div class="kw-badge" id="kwBadge">KW –</div>
+    <div id="adminChip" style="display:none;font-size:11px;color:#c8a84b;background:rgba(200,168,75,0.15);border:1px solid rgba(200,168,75,0.35);padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:500;" onclick="adminLogout()" title="Admin-Modus beenden">🔐 Admin aktiv</div>
   </div>
 </header>
 <nav class="nav-tabs">
@@ -124,9 +125,12 @@
       </div>
     </div>
 
-    <div class="full-col">
+    <div class="full-col" id="adminUploadOuter" style="display:none;">
       <div class="panel">
-        <div class="panel-header"><div class="panel-title">Daten aktualisieren</div></div>
+        <div class="panel-header">
+          <div class="panel-title">Daten aktualisieren</div>
+          <span style="font-size:11px;background:rgba(200,168,75,0.15);color:#c8a84b;padding:2px 10px;border-radius:20px;border:1px solid rgba(200,168,75,0.3);font-weight:600;">🔐 Admin</span>
+        </div>
         <div class="panel-body">
           <div class="upload-area" onclick="document.getElementById('fileInput').click()">
             <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -139,7 +143,6 @@
         </div>
       </div>
     </div>
-  </div>
   <div id="tab-team" class="tab-content">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px;" id="teamTabHeader">
       <div>
@@ -910,5 +913,25 @@
 </div>
 <div class="confetti-wrap" id="confettiWrap"></div>
 <div class="ms-toast" id="msToast">🎉 <span id="msToastMsg"></span></div>
-<footer class="footer">BBBank GreenBoard · nextGen fürs Klima 2026 · v11 · Intern &amp; Vertraulich</footer>
+<footer class="footer">
+  BBBank GreenBoard · nextGen fürs Klima 2026 · v11 · Intern &amp; Vertraulich
+  <span onclick="openAdminLogin()" style="margin-left:16px;opacity:0.3;cursor:pointer;font-size:12px;user-select:none;" title="">🔒</span>
+</footer>
+  <div class="modal-overlay" id="adminLoginOverlay" onclick="if(event.target===this)closeAdminLogin()">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Admin-Login
+    </div>
+    <div class="form-group" style="margin-top:1rem;">
+      <label class="form-label">Passwort</label>
+      <input type="password" class="form-input" id="adminPwInput" placeholder="Passwort eingeben …" autocomplete="current-password">
+      <div id="adminPwError" style="display:none;font-size:12px;color:#dc2626;margin-top:6px;">❌ Falsches Passwort</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAdminLogin()">Abbrechen</button>
+      <button class="btn-save" onclick="checkAdminPassword()">Einloggen</button>
+    </div>
+  </div>
+</div>
 <script src="script.js"></script>
