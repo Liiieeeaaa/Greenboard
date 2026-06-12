@@ -1,3 +1,48 @@
+/* ══════════════════════════════════════════════════════════
+   ADMIN-BEREICH
+   Passwort hier ändern:
+   ══════════════════════════════════════════════════════════ */
+const ADMIN_PASSWORD = 'greenboard2026';
+
+function openAdminLogin(){
+  // Wenn schon eingeloggt: einfach Upload-Bereich zeigen/scrollen
+  if(sessionStorage.getItem('gb_admin')==='1'){
+    document.getElementById('adminUploadOuter').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  document.getElementById('adminLoginOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPwInput').focus(),120);
+}
+
+function closeAdminLogin(){
+  document.getElementById('adminLoginOverlay').classList.remove('open');
+  document.getElementById('adminPwError').style.display='none';
+  document.getElementById('adminPwInput').value='';
+}
+
+function checkAdminPassword(){
+  if(document.getElementById('adminPwInput').value===ADMIN_PASSWORD){
+    sessionStorage.setItem('gb_admin','1');
+    closeAdminLogin();
+    showAdminArea(true);
+  } else {
+    document.getElementById('adminPwError').style.display='block';
+    document.getElementById('adminPwInput').value='';
+    document.getElementById('adminPwInput').focus();
+  }
+}
+
+function showAdminArea(show){
+  const upload=document.getElementById('adminUploadOuter');
+  const chip=document.getElementById('adminChip');
+  if(upload)upload.style.display=show?'block':'none';
+  if(chip)chip.style.display=show?'flex':'none';
+}
+
+function adminLogout(){
+  sessionStorage.removeItem('gb_admin');
+  showAdminArea(false);
+}
 const now = new Date();
 const jan1 = new Date(now.getFullYear(),0,1);
 const kw = Math.ceil(((now-jan1)/86400000+jan1.getDay()+1)/7);
@@ -1588,7 +1633,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Restore motto
   const motto=localStorage.getItem('gb_motto');
   if(motto){document.getElementById('spMotto').textContent=motto;}
+  // Admin-Session wiederherstellen (bleibt bis Tab geschlossen wird)
+  if(sessionStorage.getItem('gb_admin')==='1') showAdminArea(true);
+  // Enter-Taste im Passwort-Feld
+  document.getElementById('adminPwInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')checkAdminPassword();});
 });
+
 
 /* ── Team Profilbild ─────────────────────────────────────── */
 function handleTeamImg(e){
