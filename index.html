@@ -1,12 +1,15 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BBBank GreenBoard 2026 · v7</title>
+<title>BBBank GreenBoard 2026</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="style.css">
+</head>
+<body>
 </head>
 <body>
 <header class="header">
@@ -100,10 +103,10 @@
     <div class="two-col">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Rangliste Abteilungen</div>
+          <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Rangliste Abteilungen<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Sortiert nach <b>Ø Punkte pro Person</b> – so sind große und kleine Abteilungen fair vergleichbar. Wähle „Mein Team" um deine Abteilung farblich hervorzuheben.</div></div></div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <label style="font-size:11px;color:var(--text-muted);">Mein Team:</label>
-            <select class="own-team-select" id="ownTeamSelect" onchange="renderLeaderboard(window._lastDepts||[]);renderTeamTab();">
+            <select class="own-team-select" id="ownTeamSelect" onchange="onTeamChange('ownTeamSelect')">
               <option value="">– wählen –</option>
             </select>
             <div class="panel-badge" id="rankBadge">0 Abteilungen</div>
@@ -117,7 +120,7 @@
       </div>
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Wochenvergleich</div>
+          <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Wochenvergleich<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Vergleicht den Ø Punktestand der Top-5-Abteilungen pro Kalenderwoche. Klicke auf eine KW um nur diese Woche zu sehen. Lücken bedeuten keine Einträge in dieser Woche.</div></div></div>
           <div class="week-tabs" id="weekTabs"></div>
         </div>
         <div class="panel-body"><div class="chart-container"><canvas id="weekChart"></canvas></div></div>
@@ -148,7 +151,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:12px;color:var(--text-muted);">Abteilung:</span>
-        <select class="own-team-select" id="ownTeamSelect2" onchange="document.getElementById('ownTeamSelect').value=this.value;renderLeaderboard(window._lastDepts||[]);renderTeamTab();renderSpotlight();">
+        <select class="own-team-select" id="ownTeamSelect2" onchange="onTeamChange('ownTeamSelect2');renderSpotlight();">
           <option value="">– wählen –</option>
         </select>
       </div>
@@ -232,7 +235,7 @@
     <div class="two-col" style="margin-bottom:16px;">
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Mitglieder</div>
+          <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Mitglieder<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Alle Teilnehmenden deiner Abteilung, sortiert nach Gesamtpunkten. Klicke auf eine Person für Details. Der %-Wert zeigt wie weit die Person über oder unter dem Team-Durchschnitt liegt.</div></div></div>
           <div class="panel-badge" id="tkMemberBadge">0 Personen</div>
         </div>
         <div class="panel-body">
@@ -249,26 +252,26 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="panel">
-          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>Aktionen-Breakdown</div></div>
+          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>Aktionen-Breakdown</div><div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Donut-Chart der am häufigsten eingetragenen Aktionen deiner Abteilung. Zeigt welche Kategorien euer Team am stärksten treiben – und wo noch ungenutzte Punkte warten.</div></div></div>
           <div class="panel-body" id="donutPanel">
             <div class="empty-state"><div class="empty-state-icon">🥧</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
           </div>
         </div>
         <div class="panel">
-          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Team-Badge Status</div></div>
+          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>Team-Badge Status</div><div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Zeigt das aktuelle Badge-Level deiner Abteilung (Bronze → Silber → Gold → Platin) basierend auf dem Ø Punktestand.<br><br><a onclick="document.getElementById('settingFocus').click();showTab('einstellungen',document.querySelector('.nav-tab[onclick*=einstellungen]'))">Badges ausblenden →</a></div></div></div>
           <div class="panel-body" id="teamBadgePanel">
             <div class="empty-state"><div class="empty-state-icon">🏅</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
           </div>
         </div>
         <!-- v4: Badge-Thermometer -->
         <div class="panel">
-          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Badge-Stufen</div></div>
+          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>Badge-Stufen</div><div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Visualisiert alle vier Stufen (Bronze, Silber, Gold, Platin) als Thermometer. Dein Team leuchtet auf der aktuell erreichten Stufe auf.<br><br><a onclick="document.getElementById('settingFocus').click();showTab('einstellungen',document.querySelector('.nav-tab[onclick*=einstellungen]'))">Badges ausblenden →</a></div></div></div>
           <div class="panel-body" id="badgeThermometerPanel">
             <div class="empty-state"><div class="empty-state-icon">🌡️</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
           </div>
         </div>
         <div class="panel">
-          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Nächster Meilenstein</div></div>
+          <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Nächster Meilenstein</div><div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Zeigt den nächsten CO₂-Meilenstein des gesamten Wettbewerbs. Meilensteine werden freigeschaltet wenn alle Abteilungen zusammen bestimmte CO₂-Schwellen erreichen – z. B. 100 kg, 500 kg, 1 Tonne.</div></div></div>
           <div class="panel-body" id="teamMsPanel">
             <div class="empty-state"><div class="empty-state-icon">🎯</div><div class="empty-state-text">Bitte Abteilung wählen</div></div>
           </div>
@@ -294,7 +297,7 @@
     <div class="subpanel" id="subpanel-mitmachen-challenges">
       <p class="challenges-intro">Nehmt an unseren wöchentlichen Challenges teil und sammelt extra Punkte – oder macht einfach mit bei unseren allgemeinen Aktionen für mehr Nachhaltigkeit im Büroalltag!</p>
       <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Aktuelle Punkte-Challenges</div><div class="panel-badge">Extra Punkte sichern</div></div>
+        <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Aktuelle Punkte-Challenges<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Zeitlich begrenzte Bonus-Challenges mit extra Punkten. Aktive Challenges kannst du durch bestimmte Aktionen in deinem nächsten Wocheneintrag erfüllen – schau dir die Bedingung genau an!</div></div></div><div class="panel-badge">Extra Punkte sichern</div></div>
         <div class="panel-body">
           <div class="challenge-grid">
             <div class="challenge-card type-punkte">
@@ -406,7 +409,7 @@
     <!-- Sub-Panel: Punktesystem -->
     <div class="subpanel" id="subpanel-spielregeln-punktesystem">
       <div class="panel">
-        <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Punktesystem Übersicht</div><div class="panel-badge">Max. 110 Punkte / Woche</div></div>
+        <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Punktesystem Übersicht<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Jede Aktion bringt eine feste Punktzahl pro Wocheneintrag. Punkte werden pro Person und Woche gezählt – maximal 110 Punkte/Woche. Der Abteilungsscore ist der Ø aller Mitglieder.</div></div></div><div class="panel-badge">Max. 110 Punkte / Woche</div></div>
         <div class="panel-body">
           <div class="scoring-grid">
             <div>
@@ -451,7 +454,7 @@
     <div class="subpanel" id="subpanel-spielregeln-badges" style="display:none;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
         <div>
-          <div style="font-size:20px;font-weight:600;color:var(--text-primary);">🏅 Badge-Sammlung</div>
+          <div style="font-size:20px;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">🏅 Badge-Sammlung<div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Alle 40 sammelbaren Badges mit Freischaltbedingungen. Badges werden automatisch freigeschaltet sobald die Bedingung in deinen Wochendaten erfüllt ist.<br><br><a onclick="document.getElementById('settingFocus').click();showTab('einstellungen',document.querySelector('.nav-tab[onclick*=einstellungen]'))">Badges ausblenden →</a></div></div></div>
           <div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Alle sammelbaren Badges · Freischaltbedingungen · Fortschritt</div>
         </div>
       </div>
@@ -485,7 +488,7 @@
   <div id="tab-esg" class="tab-content">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px;">
       <div>
-        <div class="premium-section-title"><svg style="width:20px;height:20px;vertical-align:middle;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>ESG Impact Center</div>
+        <div class="premium-section-title" style="display:flex;align-items:center;gap:8px;"><svg style="width:20px;height:20px;vertical-align:middle;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>ESG Impact Center<div class="esg-info-wrap" id="esgInfoWrap"><button class="esg-info-btn" onclick="toggleEsgInfo(event)" tabindex="-1" aria-label="Was ist ESG?">i</button><div class="esg-info-popover" id="esgInfoPopover"><div class="esg-pop-title">💡 Was ist ESG?</div><div class="esg-pop-pills"><div class="esg-pop-pill e"><span class="esg-pop-letter">E</span><div><div class="esg-pop-name">Environmental · Umwelt</div><div class="esg-pop-desc">CO₂-Einsparungen, nachhaltige Mobilität &amp; Papierverbrauch.</div></div></div><div class="esg-pop-pill s"><span class="esg-pop-letter">S</span><div><div class="esg-pop-name">Social · Soziales</div><div class="esg-pop-desc">Teamzusammenhalt, Social Days &amp; gemeinsames Engagement.</div></div></div><div class="esg-pop-pill g"><span class="esg-pop-letter">G</span><div><div class="esg-pop-name">Governance · Führung</div><div class="esg-pop-desc">Regelmäßigkeit &amp; Kontinuität der Nachhaltigkeitsmaßnahmen.</div></div></div></div><div class="esg-pop-note">Der Score basiert auf den realen Aktionsdaten aller Teilnehmenden.</div></div></div></div>
         <div class="premium-section-sub">Live-Kennzahlen · Klimawirkung · Nachhaltigkeitsrating</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;" id="esgLastUpdate"></div>
@@ -514,19 +517,19 @@
       <div class="esg-rating-box">
         <div class="esg-rating-ico">🌿</div>
         <div class="esg-rating-grade" id="esgGradeE">–</div>
-        <div class="esg-rating-label">Environmental</div>
+        <div class="esg-rating-label" style="display:flex;align-items:center;justify-content:center;gap:5px;">Environmental<div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip"><b>Environmental (Umwelt)</b><br>Bewertet CO₂-Einsparungen durch nachhaltige Mobilität (Fahrrad, zu Fuß, ÖPNV, Homeoffice) und Papiervermeidung. Je mehr grüne Aktionen, desto besser die Note.</div></div></div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="esgGradeESub">CO₂ & Mobilität</div>
       </div>
       <div class="esg-rating-box">
         <div class="esg-rating-ico">🤝</div>
         <div class="esg-rating-grade" id="esgGradeS">–</div>
-        <div class="esg-rating-label">Social</div>
+        <div class="esg-rating-label" style="display:flex;align-items:center;justify-content:center;gap:5px;">Social<div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip"><b>Social (Soziales)</b><br>Misst die Beteiligung am Wettbewerb und absolvierte Social Days. Hohe Teilnahmequote und gemeinsames Engagement verbessern diese Note.</div></div></div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="esgGradeSSub">Teilnahme & Social Day</div>
       </div>
       <div class="esg-rating-box">
         <div class="esg-rating-ico">⚙️</div>
         <div class="esg-rating-grade" id="esgGradeG">–</div>
-        <div class="esg-rating-label">Governance</div>
+        <div class="esg-rating-label" style="display:flex;align-items:center;justify-content:center;gap:5px;">Governance<div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip"><b>Governance (Führung)</b><br>Bewertet die Kontinuität – wie regelmäßig und konsistent Aktionen über mehrere Wochen eingetragen werden. Nachhaltigkeit als Gewohnheit, nicht als Einmalereignis.</div></div></div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:5px;" id="esgGradeGSub">Konsistenz & Aktivität</div>
       </div>
     </div>
@@ -562,9 +565,9 @@
         <div class="esg-impact-equiv" id="esgEquivMobility">fossil-freie Wege</div>
       </div>
       <div class="esg-impact-card">
-        <span class="esg-impact-ico">💧</span>
-        <div class="esg-impact-label">Wasser gespart</div>
-        <div class="esg-impact-val"><span id="esgImpWater">–</span><span>L</span></div>
+        <span class="esg-impact-ico">📅</span>
+        <div class="esg-impact-label">Aktive Wochen</div>
+        <div class="esg-impact-val"><span id="esgImpWater">–</span><span>Wo</span></div>
         <div class="esg-bar-track"><div class="esg-bar-fill water" id="esgBarWater" style="width:0%"></div></div>
         <div class="esg-impact-equiv" id="esgEquivWater">≈ – Duschgänge</div>
       </div>
@@ -575,14 +578,14 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>CO₂-Einsparung · Wochentrend</div>
-          <div class="panel-badge" id="esgTrendBadge">–</div>
+          <div style="display:flex;align-items:center;gap:8px;"><div class="panel-badge" id="esgTrendBadge">–</div><div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Zeigt die kumulierte CO₂-Einsparung pro Kalenderwoche. Berechnet aus: Anzahl Fahrrad-/Fußwege × 0,21 kg CO₂/km (PKW-Durchschnitt), Homeoffice-Tage × Pendeldistanz und Papiervermeidung.</div></div></div>
         </div>
         <div class="panel-body" style="padding:1rem;">
           <div class="chart-container" style="height:220px;"><canvas id="esgTrendChart"></canvas></div>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Kategorie-Impact</div></div>
+        <div class="panel-header"><div class="panel-title"><svg class="panel-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Kategorie-Impact</div><div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Aufschlüsselung der gesammelten Punkte nach Aktionskategorie (Mobilität, Papier, Energie etc.). Zeigt wo das Team den größten Beitrag leistet – und wo noch Potenzial steckt.</div></div></div>
         <div class="panel-body" style="padding:1.25rem;">
           <div id="esgCatRows"></div>
         </div>
@@ -626,6 +629,29 @@
       </div>
     </div>
 
+    <!-- VS Modus Toggle -->
+    <div class="vs-toggle-bar" id="vsToggleBar">
+      <div>
+        <div class="vs-toggle-label">⚔️ VS-Modus</div>
+        <div class="vs-toggle-sub">Vergleiche dich direkt mit einer anderen Person</div>
+      </div>
+      <button class="vs-toggle-btn" id="vsToggleBtn" onclick="toggleVSMode()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>
+        VS-Modus starten
+      </button>
+    </div>
+
+    <!-- VS Challenger Auswahl (nur sichtbar wenn VS aktiv) -->
+    <div class="vs-challenger-row" id="vsChallengerRow" style="display:none;">
+      <label>⚔️ Herausforderer:</label>
+      <select class="form-select" id="vsPersonSelect" onchange="renderVS()">
+        <option value="">– Person wählen –</option>
+      </select>
+    </div>
+
+    <!-- VS Arena (nur sichtbar wenn VS aktiv und beide gewählt) -->
+    <div id="vsArenaWrap" style="display:none;"></div>
+
     <div id="profilContent" style="display:none;">
       <!-- KPIs -->
       <div class="metrics-grid profil-metrics-grid" style="margin-bottom:16px;">
@@ -657,10 +683,22 @@
         </div>
       </div>
 
+      <!-- Streak Banner -->
+      <div class="streak-banner" id="streakBanner" style="margin-bottom:16px;">
+        <div class="streak-flame-wrap">
+          <span class="streak-flame" id="streakFlame">🔥</span>
+        </div>
+        <div class="streak-info">
+          <div class="streak-count" id="streakCount">0 Wochen</div>
+          <div class="streak-label" id="streakLabel">Starte jetzt deinen Streak!</div>
+        </div>
+        <div class="streak-dots" id="streakDots"></div>
+      </div>
+
       <!-- Persönliche Badges -->
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-header">
-          <div class="panel-title">🏅 Meine Badges</div>
+          <div class="panel-title" style="display:flex;align-items:center;gap:8px;">🏅 Meine Badges<div class="info-btn-wrap"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Persönliche Badges die du durch deine eigenen Einträge freigeschaltet hast – z. B. Fahrrad-Pendeln, Homeoffice-Tage oder Social Days.<br><br><a onclick="document.getElementById('settingFocus').click();showTab('einstellungen',document.querySelector('.nav-tab[onclick*=einstellungen]'))">Badges ausblenden →</a></div></div></div>
           <div class="panel-badge" id="ppBadgeCount">0 freigeschaltet</div>
         </div>
         <div class="panel-body">
@@ -671,7 +709,7 @@
       <div class="two-col" style="margin-bottom:16px;">
         <!-- Einsparungen -->
         <div class="panel">
-          <div class="panel-header"><div class="panel-title">🌍 Meine Einsparungen</div></div>
+          <div class="panel-header"><div class="panel-title">🌍 Meine Einsparungen<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Dein persönlicher CO₂-Fußabdruck basierend auf deinen eingetragenen Aktionen. Berechnet nach wissenschaftlichen Schätzwerten (z. B. 0,21 kg CO₂ pro km Autofahrt).</div></div></div></div>
           <div class="panel-body">
             <div class="profil-savings" id="profilSavings"></div>
           </div>
@@ -679,7 +717,7 @@
 
         <!-- Verbesserungspotenzial -->
         <div class="panel">
-          <div class="panel-header"><div class="panel-title">🎯 Verbesserungspotenzial</div><div class="panel-badge">Tipps für dich</div></div>
+          <div class="panel-header"><div class="panel-title">🎯 Verbesserungspotenzial<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Zeigt welche Aktionen du in deinen Einträgen noch nicht oder selten genutzt hast – mit konkretem Punktepotenzial. Ideal um schnell mehr Punkte zu sammeln.</div></div></div><div class="panel-badge">Tipps für dich</div></div>
           <div class="panel-body">
             <div class="profil-tips" id="profilTips"></div>
           </div>
@@ -688,9 +726,20 @@
 
       <!-- Level-Fortschritt -->
       <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-header"><div class="panel-title">🏅 Level-Fortschritt</div></div>
+        <div class="panel-header"><div class="panel-title">🏅 Level-Fortschritt<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Dein persönlicher Badge-Level basierend auf deiner Gesamtpunktzahl. Je mehr Punkte du sammelst, desto höher steigst du auf: Bronze → Silber → Gold → Platin.</div></div></div></div>
         <div class="panel-body">
           <div class="profil-level-track" id="profilLevelTrack"></div>
+        </div>
+      </div>
+
+      <!-- Performanzverlauf -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">📈 Performanzverlauf<div class="info-btn-wrap" style="margin-left:4px;"><button class="info-btn" tabindex="-1">i</button><div class="info-btn-tooltip">Deine wöchentlichen Punkte als Verlaufskurve – so siehst du auf einen Blick ob du dich steigerst, konstant bleibst oder Wochen verpasst hast.</div></div></div>
+          <div class="panel-badge" id="ppTrendBadge">–</div>
+        </div>
+        <div class="panel-body" style="padding:1rem 1.25rem 1.25rem;">
+          <div style="position:relative;height:180px;"><canvas id="profilTrendChart"></canvas></div>
         </div>
       </div>
 
@@ -738,30 +787,50 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Info-Tooltips anzeigen</div>
+            <div class="settings-row-sub">Kleine ⓘ-Symbole an Badge-Panels mit Erklärungen ein- oder ausblenden</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingInfoTooltips" checked onchange="applyInfoTooltips(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
     </div>
 
-    <!-- Datenschutz -->
+    <!-- Performance -->
     <div class="panel" style="margin-bottom:16px;">
-      <div class="panel-header"><div class="panel-title">🔒 Datenschutz</div></div>
+      <div class="panel-header"><div class="panel-title">⚡ Performance</div></div>
       <div class="panel-body">
         <div class="settings-row">
           <div class="settings-row-info">
-            <div class="settings-row-label">Anonymer Modus</div>
-            <div class="settings-row-sub">Namen in der Rangliste und Mitgliederliste werden durch „Mitglied #XX" ersetzt</div>
+            <div class="settings-row-label">Performance Modus</div>
+            <div class="settings-row-sub">Alle Animationen und Übergänge deaktivieren – für schnellere Darstellung</div>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" id="settingAnonym" onchange="applyAnonym(this.checked)">
+            <input type="checkbox" id="settingPerformance" onchange="applyPerformance(this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </div>
         <div class="settings-row">
           <div class="settings-row-info">
-            <div class="settings-row-label">E-Mails ausblenden</div>
-            <div class="settings-row-sub">E-Mail-Adressen werden nirgendwo angezeigt</div>
+            <div class="settings-row-label">Präsentations-Modus</div>
+            <div class="settings-row-sub">Navigationsleiste und Einstellungen ausblenden – ideal für Bildschirmfreigaben</div>
           </div>
           <label class="toggle-switch">
-            <input type="checkbox" id="settingHideEmail" checked onchange="window._hideEmail=this.checked">
+            <input type="checkbox" id="settingPresentation" onchange="applyPresentation(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="settings-row-label">Fokus-Modus</div>
+            <div class="settings-row-sub">Badges, Challenges, Tipps und Gamification-Elemente ausblenden – nur Kernzahlen</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="settingFocus" onchange="applyFocus(this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -793,6 +862,42 @@
               CSV herunterladen
             </button>
           </div>
+          <div class="settings-export-row">
+            <div>
+              <div class="settings-row-label">Platzierungen & Punkte als Excel</div>
+              <div class="settings-row-sub">Abteilungs-Ranking und Mitarbeitenden-Punkte als .xlsx-Datei mit zwei Tabellenblättern</div>
+            </div>
+            <button class="settings-action-btn" onclick="exportExcelRanking()">
+              <svg style="width:14px;height:14px;" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Excel herunterladen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feedback -->
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header"><div class="panel-title">💬 Feedback & Verbesserungsvorschläge</div></div>
+      <div class="panel-body">
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:1rem;">
+          Du hast eine Idee, einen Bug gefunden oder einfach Feedback zum GreenBoard, der Datenerfassung oder generell rund um den Wettbewerb? Wir freuen uns über jede Rückmeldung – egal wie groß oder klein!
+        </div>
+        <div class="settings-export-row">
+          <div>
+            <div class="settings-row-label">Feedback per E-Mail senden</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+              <span class="settings-row-sub" style="margin-top:0;">maxim.makarova@bbbank.de</span>
+              <button onclick="copyFeedbackEmail(this)" title="E-Mail-Adresse kopieren" style="background:none;border:1px solid var(--border-strong);border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px;color:var(--text-secondary);font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;transition:background 0.15s,color 0.15s;">
+                <svg style="width:11px;height:11px;flex-shrink:0;" viewBox="0 0 16 16" fill="none"><rect x="5" y="5" width="8" height="9" rx="1.2" stroke="currentColor" stroke-width="1.5"/><path d="M3 11V3a1 1 0 0 1 1-1h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Kopieren
+              </button>
+            </div>
+          </div>
+          <a class="settings-action-btn" href="mailto:maxim.makarova@bbbank.de?subject=GreenBoard%20Feedback" style="text-decoration:none;">
+            <svg style="width:14px;height:14px;" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 4l5.5 4.5L13.5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            E-Mail schreiben
+          </a>
         </div>
       </div>
     </div>
@@ -910,5 +1015,12 @@
 </div>
 <div class="confetti-wrap" id="confettiWrap"></div>
 <div class="ms-toast" id="msToast">🎉 <span id="msToastMsg"></span></div>
+<div id="presentationExitBar">
+  <span>📽️ Präsentations-Modus aktiv</span>
+  <button onclick="applyPresentation(false);document.getElementById('settingPresentation').checked=false;">Beenden</button>
+</div>
 <footer class="footer">BBBank GreenBoard · nextGen fürs Klima 2026 · v11 · Intern &amp; Vertraulich</footer>
+
 <script src="script.js"></script>
+</body>
+</html>
