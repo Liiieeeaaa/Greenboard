@@ -50,8 +50,13 @@ document.getElementById('kwBadge').textContent='KW '+kw;
 function showTab(id, btn) {
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  // Einstellungen-Button im Header
+  const settBtn = document.getElementById('settingsNavBtn');
+  if(settBtn) settBtn.classList.remove('active');
   document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+  // Wenn Einstellungen: Header-Button aktiv markieren
+  if(id==='einstellungen' && settBtn) settBtn.classList.add('active');
 }
 function showSubTab(tabId, subId) {
   // Hide all subpanels in this tab
@@ -75,29 +80,53 @@ const SCORE={
 const CO2_PER_PT=0.12;
 let deptChartObj=null,weekChartObj=null,weeklyData={};
 function matchScore(map,val){
-  const v=(val||'').toLowerCase().trim();
+  // \xa0 ist ein geschütztes Leerzeichen das Microsoft Forms manchmal anhängt
+  const v=(val||'').toLowerCase().replace(/\xa0/g,' ').trim();
   for(const[k,p]of Object.entries(map))if(v.includes(k))return p;
   return null;
 }
 function scoreRow(row){
-  const cols=Object.keys(row);let pts=0;
+  const cols=Object.keys(row);
+  const colFind=(test)=>cols.find(c=>test(c.toLowerCase().replace(/\xa0/g,' ').trim()));
+  let pts=0;
   let commutePts=0,travelPts=0,homePts=0,printPts=0,socialPts=0;
-  const commuteCol=cols.find(c=>c.toLowerCase().includes('verkehrsmittel')&&c.toLowerCase().includes('arbeit'));
+  const commuteCol=colFind(c=>c.includes('verkehrsmittel')&&c.includes('arbeit'));
   if(commuteCol){const s=matchScore(SCORE.commute,row[commuteCol]);if(s!==null){pts+=s;commutePts=s;}}
-  const travelCol=cols.find(c=>c.toLowerCase().includes('dienstreise'));
+  const travelCol=colFind(c=>c.includes('dienstreise'));
   if(travelCol){const s=matchScore(SCORE.travel,row[travelCol]);if(s!==null){pts+=s;travelPts=s;}}
-  const homeCol=cols.find(c=>c.toLowerCase().includes('homeoffice'));
-  if(homeCol){const d=Math.min(5,Math.max(0,parseInt(row[homeCol])||0));homePts=SCORE.homeofficePts[d];pts+=homePts;}
-  const printCol=cols.find(c=>c.toLowerCase().includes('seiten')||c.toLowerCase().includes('gedruckt'));
+  const homeCol=colFind(c=>c.includes('homeoffice'));
+  if(homeCol){const raw=String(row[homeCol]||'0').replace(/\xa0/g,'').trim();const d=Math.min(5,Math.max(0,parseInt(raw)||0));homePts=SCORE.homeofficePts[d];pts+=homePts;}
+  const printCol=colFind(c=>c.includes('seiten')||c.includes('gedruckt'));
   if(printCol){const s=matchScore(SCORE.print,row[printCol]);if(s!==null){pts+=s;printPts=s;}}
-  const socialCol=cols.find(c=>c.toLowerCase().includes('social'));
+  const socialCol=colFind(c=>c.includes('social'));
   if(socialCol){const v=(row[socialCol]||'').toLowerCase();if(v.includes('ja')||v==='true'||v==='1'){pts+=SCORE.socialDay;socialPts=SCORE.socialDay;}}
   row._commutePts=commutePts;row._travelPts=travelPts;row._homePts=homePts;row._printPts=printPts;row._socialPts=socialPts;
   return pts;
 }
-function getAbteilung(row){const col=Object.keys(row).find(c=>c.toLowerCase().includes('abteilung'));return col?(row[col]||'').trim():null;}
-function getEmail(row){const col=Object.keys(row).find(c=>c.toLowerCase().includes('mail'));return col?(row[col]||'').trim():'';}
-function getName(row){const col=Object.keys(row).find(c=>c.toLowerCase()==='name');return col?(row[col]||'').trim():'';}
+function getAbteilung(row){const col=Object.keys(row).find(c=>c.toLowerCase().replace(/\xa0/g,' ').trim().includes('abteilung'));return col?(row[col]||'').replace(/\xa0/g,' ').trim()||null:null;}
+function _colFind(row, test){ return Object.keys(row).find(c=>test(c.toLowerCase().replace(/\xa0/g,' ').trim())); }
+function getEmail(row){const col=_colFind(row,c=>c.includes('mail'));return col?(row[col]||'').trim():'';}
+function getName(row){
+  const cols=Object.keys(row);
+  const exact=cols.find(c=>c.toLowerCase().replace(/\xa0/g,' ').trim()==='name');
+  if(exact&&(row[exact]||'').trim()) return (row[exact]||'').trim();
+  const partial=cols.find(c=>c.toLowerCase().replace(/\xa0/g,' ').trim().includes('name')&&!c.toLowerCase().includes('abteilung')&&!c.toLowerCase().includes('datei'));
+  if(partial&&(row[partial]||'').trim()) return (row[partial]||'').trim();
+  const namelike=cols.find(c=>{
+    const v=(row[c]||'').toString().trim();
+    return v.includes(' ')&&!v.includes('@')&&!/\d/.test(v)&&v.length>4&&v.length<60;
+  });
+  if(namelike&&(row[namelike]||'').trim()) return (row[namelike]||'').trim();
+  const emailCol=_colFind(row,c=>c.includes('mail'));
+  if(emailCol){
+    const email=(row[emailCol]||'').trim().toLowerCase();
+    const local=email.split('@')[0]||'';
+    if(local.includes('.')){
+      return local.split('.').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+    }
+  }
+  return '';
+}
 function _parseRowDate(row){
   const col=Object.keys(row).find(c=>c.toLowerCase().includes('startzeit')||c.toLowerCase().includes('start'));
   if(!col||!row[col])return null;
@@ -158,7 +187,7 @@ function renderBadges(depts){
   if(consistent)badges.push({ico:'🔄',cls:'silver',name:'Konstant aktiv',who:consistent.name});
   if(depts.length>=2)badges.push({ico:'🌱',cls:'blue',name:'Eco-Vorreiter',who:byAvg[1].name});
   if(depts.length>=3)badges.push({ico:'♻️',cls:'purple',name:'Top-Sparer',who:byTotal[2]?.name||byAvg[2].name});
-  document.getElementById('badgeCount').textContent=badges.length+' Badges';
+  const bcEl=document.getElementById('badgeCount');if(bcEl)bcEl.textContent=badges.length+' Badges';
   grid.innerHTML=badges.map(b=>`<div class="badge-item"><div class="badge-ico ${b.cls}">${b.ico}</div><div><div class="badge-nm">${b.name}</div><div class="badge-who">${b.who}</div></div></div>`).join('');
 }
 function renderMilestones(co2Total){
@@ -1132,10 +1161,18 @@ function renderESGImpact(depts, co2Total, deduped){
   const totalPts = depts.reduce((s,d)=>s+d.total,0);
 
   // Derived impact estimates
-  const energyKWh = Math.round(deduped.length * 3.2); // ~3.2 kWh per HO day saved commute
-  const paperSaved = Math.round(totalPts * 0.8); // rough estimate from print scores
-  const mobilityKm = Math.round(totalPts * 1.2); // eco commute km
+  const totalHODays = deduped.reduce((s,r)=>s+Math.round((r._homePts||0)/8),0);
+  const energyKWh = Math.round(totalHODays * 3.2); // 3.2 kWh Pendelersparnis pro HO-Tag
+  // Papier: 0P = 30+ Seiten gespart vs. 15P = 0 Seiten gedruckt
+  // Schätzung: (15 - printPts) / 15 * 30 Seiten vermieden pro Person
+  const totalPrintPts = deduped.reduce((s,r)=>s+(r._printPts||0),0);
+  const paperSaved = Math.round(deduped.length > 0
+    ? deduped.reduce((s,r)=>{ const pts=r._printPts||0; return s + Math.max(0,Math.round((15-pts)/15*30)); },0)
+    : 0);
+  const totalCommutePts = deduped.reduce((s,r)=>s+(r._commutePts||0),0);
+  const mobilityKm = Math.round(totalCommutePts * 0.8); // Schätzung: grüne Pendelpunkte × 0.8 km-Faktor
   const waterL = Math.round(deduped.length * 55); // per person estimate
+  const activeWeeks = Object.keys(weeklyData).length; // echte Anzahl Messwochen
 
   // ESG Score
   const {score,e,s,g} = calcESGScore(depts,co2Total,deduped);
@@ -1173,10 +1210,10 @@ function renderESGImpact(depts, co2Total, deduped){
   // Impact cards
   const impactData=[
     {id:'esgImpCO2',barId:'esgBarCO2',equivId:'esgEquivCO2',val:co2Total,max:250,equiv:`≈ ${Math.round(co2Total/21)} Bäume/Jahr`},
-    {id:'esgImpEnergy',barId:'esgBarEnergy',equivId:'esgEquivEnergy',val:energyKWh,max:5000,equiv:`≈ ${Math.round(energyKWh/2.4)} Haushaltsstunden`},
+    {id:'esgImpEnergy',barId:'esgBarEnergy',equivId:'esgEquivEnergy',val:energyKWh,max:5000,equiv:`≈ ${Math.round(energyKWh/3.5)} Tage Strom (Ø Haushalt)`},
     {id:'esgImpPaper',barId:'esgBarPaper',equivId:'esgEquivPaper',val:paperSaved,max:10000,equiv:`≈ ${Math.round(paperSaved/8333)} Bäume geschont`},
     {id:'esgImpMobility',barId:'esgBarMobility',equivId:'esgEquivMobility',val:mobilityKm,max:5000,equiv:`fossil-freie Wege`},
-    {id:'esgImpWater',barId:'esgBarWater',equivId:'esgEquivWater',val:waterL,max:50000,equiv:`≈ ${Math.round(waterL/70)} Duschgänge gespart`},
+    {id:'esgImpWater',barId:'esgBarWater',equivId:'esgEquivWater',val:activeWeeks,max:26,equiv:'Messwochen im Wettbewerb'},
   ];
   impactData.forEach(d=>{
     const el=document.getElementById(d.id); if(el) el.textContent=d.val.toLocaleString('de-DE');
@@ -1476,7 +1513,7 @@ function exportCSV(){
 /* ── Platzierungen & Punkte als Excel (.xlsx) ─────────────── */
 function exportExcelRanking(){
   if(!window._allDepts || !window._allDepts.length){ alert('Bitte zuerst Daten laden.'); return; }
-  const hideEmail = document.getElementById('settingHideEmail')?.checked;
+  const hideEmail = window._hideEmail;
   const anonym = document.getElementById('settingAnonym')?.checked;
 
   // Sheet 1: Abteilungs-Rangliste
@@ -1886,7 +1923,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const it=_ls.getItem('gb_infotooltips');
   if(it==='0'){document.getElementById('settingInfoTooltips').checked=false;applyInfoTooltips(false);}
   if(an==='1'){document.getElementById('settingAnonym').checked=true;applyAnonym(true);}
-if(he==='0'){document.getElementById('settingHideEmail').checked=false;applyHideEmail(false);}
+if(he==='0'){const hec=document.getElementById('settingHideEmail');if(hec)hec.checked=false;applyHideEmail(false);}
   else{window._hideEmail=true;}
 
   // Gespeicherte Excel-Daten wiederherstellen
@@ -2314,4 +2351,134 @@ function toggleEsgInfo(e){
     setTimeout(()=>document.addEventListener('click',close),10);
   }
 }
+
+/* ── Tooltip-Positionierung ──────────────────────────────── */
+(function(){
+  let activeTooltip = null;
+
+  function showTooltipFor(trigger, tooltipEl){
+    if(!tooltipEl) return;
+    tooltipEl.style.visibility = 'hidden';
+    tooltipEl.style.display    = 'block';
+    try{
+      const r  = trigger.getBoundingClientRect();
+      const tw = tooltipEl.offsetWidth  || 230;
+      const th = tooltipEl.offsetHeight || 80;
+      const margin = 8;
+      let top  = r.top - th - margin;
+      if(top < margin) top = r.bottom + margin;
+      let left = r.right - tw;
+      if(left < margin) left = margin;
+      if(left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin;
+      tooltipEl.style.top  = top  + 'px';
+      tooltipEl.style.left = left + 'px';
+    }catch(err){}
+    tooltipEl.style.visibility = 'visible';
+    activeTooltip = tooltipEl;
+  }
+
+  function hideTooltip(tooltipEl){
+    if(!tooltipEl) return;
+    tooltipEl.style.display    = 'none';
+    tooltipEl.style.visibility = 'hidden';
+    if(activeTooltip === tooltipEl) activeTooltip = null;
+  }
+
+  document.addEventListener('mouseover', function(e){
+    try{
+      const wrap = e.target.closest('.info-btn-wrap');
+      if(wrap){
+        const btn = wrap.querySelector('.info-btn');
+        const tip = wrap.querySelector('.info-btn-tooltip');
+        if(btn && tip) showTooltipFor(btn, tip);
+      }
+      const bc = e.target.closest('.bc-card');
+      if(bc){
+        const tip = bc.querySelector('.bc-tooltip');
+        if(tip) showTooltipFor(bc, tip);
+      }
+    }catch(err){}
+  }, {passive:true});
+
+  document.addEventListener('mouseout', function(e){
+    try{
+      const wrap = e.target.closest('.info-btn-wrap');
+      if(wrap && !wrap.contains(e.relatedTarget)){
+        hideTooltip(wrap.querySelector('.info-btn-tooltip'));
+      }
+      const bc = e.target.closest('.bc-card');
+      if(bc && !bc.contains(e.relatedTarget)){
+        hideTooltip(bc.querySelector('.bc-tooltip'));
+      }
+    }catch(err){}
+  }, {passive:true});
+
+  window.addEventListener('scroll', function(){
+    if(!activeTooltip) return;
+    try{
+      const wrap = activeTooltip.closest('.info-btn-wrap');
+      if(wrap){ const btn=wrap.querySelector('.info-btn'); if(btn) showTooltipFor(btn,activeTooltip); }
+      const bc = activeTooltip.closest('.bc-card');
+      if(bc) showTooltipFor(bc, activeTooltip);
+    }catch(err){}
+  }, {passive:true});
+})();
+
+/* ── Wettbewerbs-Countdown ────────────────────────────────── */
+(function(){
+  // ⚙️ HIER ANPASSEN: Start- und Enddatum des Wettbewerbs
+  // Testphase: KW 26-27 (ab 23.06.2026)
+  // Wettbewerb: KW 28-37 (07.07.2026 – 12.09.2026)
+  const CONTEST_START = new Date('2026-07-20T00:00:00');
+  const CONTEST_END   = new Date('2026-09-14T23:59:59');
+
+  function updateCountdown(){
+    const now  = new Date();
+    const banner = document.getElementById('contestBanner');
+    const title  = document.getElementById('contestTitle');
+    const sub    = document.getElementById('contestSub');
+    const cdEl   = document.getElementById('contestCountdown');
+    const wEl    = document.getElementById('cdWeeks');
+    const dEl    = document.getElementById('cdDays');
+    const hEl    = document.getElementById('cdHours');
+    if(!banner) return;
+
+    if(now < CONTEST_START){
+      // Vor dem Wettbewerb → Countdown bis Start
+      const diff = CONTEST_START - now;
+      const weeks = Math.floor(diff / (7*24*3600*1000));
+      const days  = Math.floor((diff % (7*24*3600*1000)) / (24*3600*1000));
+      const hours = Math.floor((diff % (24*3600*1000)) / 3600000);
+      if(title) title.textContent = 'nextGen fürs Klima 2026';
+      if(sub)   sub.textContent   = '⏳ Testphase läuft (22.06.–13.07.) · Wettbewerb ab 20.07.';
+      if(wEl) wEl.textContent = String(weeks).padStart(2,'0');
+      if(dEl) dEl.textContent = String(days).padStart(2,'0');
+      if(hEl) hEl.textContent = String(hours).padStart(2,'0');
+    } else if(now <= CONTEST_END){
+      // Wettbewerb läuft → Countdown bis Ende
+      const diff = CONTEST_END - now;
+      const weeks = Math.floor(diff / (7*24*3600*1000));
+      const days  = Math.floor((diff % (7*24*3600*1000)) / (24*3600*1000));
+      const hours = Math.floor((diff % (24*3600*1000)) / 3600000);
+      // Aktuelle KW im Wettbewerb
+      const elapsed = now - CONTEST_START;
+      const currentWeek = Math.min(10, Math.floor(elapsed / (7*24*3600*1000)) + 1);
+      if(title) title.textContent = 'nextGen fürs Klima 2026';
+      if(sub)   sub.textContent   = `🟢 Wettbewerb läuft · Woche ${currentWeek} von 10`;
+      if(wEl) wEl.textContent = String(weeks).padStart(2,'0');
+      if(dEl) dEl.textContent = String(days).padStart(2,'0');
+      if(hEl) hEl.textContent = String(hours).padStart(2,'0');
+    } else {
+      // Wettbewerb beendet
+      if(title) title.textContent = 'nextGen fürs Klima 2026';
+      if(sub)   sub.textContent   = '🏁 Wettbewerb beendet · Vielen Dank an alle Teilnehmenden!';
+      if(cdEl)  cdEl.innerHTML    = '<div style="font-size:24px;color:#fff;">🏆</div>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateCountdown();
+    setInterval(updateCountdown, 60000); // jede Minute aktualisieren
+  });
+})();
 
