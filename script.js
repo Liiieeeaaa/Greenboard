@@ -1,3 +1,12 @@
+/* ── Sicherer localStorage-Wrapper (muss ganz oben stehen) ── */
+const _ls = (() => {
+  try { localStorage.setItem('__test__','1'); localStorage.removeItem('__test__'); return localStorage; }
+  catch(e) {
+    const mem = {};
+    return { getItem: k=>mem[k]??null, setItem:(k,v)=>{mem[k]=String(v);}, removeItem:k=>{delete mem[k];} };
+  }
+})();
+
 /* ══════════════════════════════════════════════════════════
    ADMIN-BEREICH
    Passwort hier ändern:
@@ -1456,15 +1465,6 @@ function copyFeedbackEmail(btn){
   });
 }
 
-/* ── Anonymer Modus ──────────────────────────────────────── */
-/* ── Sicherer localStorage-Wrapper (robust gegen iframe/sandbox) ── */
-const _ls = (() => {
-  try { localStorage.setItem('__test__','1'); localStorage.removeItem('__test__'); return localStorage; }
-  catch(e) {
-    const mem = {};
-    return { getItem: k=>mem[k]??null, setItem:(k,v)=>{mem[k]=String(v);}, removeItem:k=>{delete mem[k];} };
-  }
-})();
 
 window._anonymMode = false;
 window._hideEmail = true;
