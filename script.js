@@ -1,3 +1,57 @@
+/* ── Sicherer localStorage-Wrapper (muss ganz oben stehen) ── */
+const _ls = (() => {
+  try { localStorage.setItem('__test__','1'); localStorage.removeItem('__test__'); return localStorage; }
+  catch(e) {
+    const mem = {};
+    return { getItem: k=>mem[k]??null, setItem:(k,v)=>{mem[k]=String(v);}, removeItem:k=>{delete mem[k];} };
+  }
+})();
+
+/* ══════════════════════════════════════════════════════════
+   ADMIN-BEREICH
+   Passwort hier ändern:
+   ══════════════════════════════════════════════════════════ */
+const ADMIN_PASSWORD = 'greenboard2026';
+
+function openAdminLogin(){
+  // Wenn schon eingeloggt: einfach Upload-Bereich zeigen/scrollen
+  if(sessionStorage.getItem('gb_admin')==='1'){
+    document.getElementById('adminUploadOuter').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  document.getElementById('adminLoginOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPwInput').focus(),120);
+}
+
+function closeAdminLogin(){
+  document.getElementById('adminLoginOverlay').classList.remove('open');
+  document.getElementById('adminPwError').style.display='none';
+  document.getElementById('adminPwInput').value='';
+}
+
+function checkAdminPassword(){
+  if(document.getElementById('adminPwInput').value===ADMIN_PASSWORD){
+    sessionStorage.setItem('gb_admin','1');
+    closeAdminLogin();
+    showAdminArea(true);
+  } else {
+    document.getElementById('adminPwError').style.display='block';
+    document.getElementById('adminPwInput').value='';
+    document.getElementById('adminPwInput').focus();
+  }
+}
+
+function showAdminArea(show){
+  const upload=document.getElementById('adminUploadOuter');
+  const chip=document.getElementById('adminChip');
+  if(upload)upload.style.display=show?'block':'none';
+  if(chip)chip.style.display=show?'flex':'none';
+}
+
+function adminLogout(){
+  sessionStorage.removeItem('gb_admin');
+  showAdminArea(false);
+}
 const now = new Date();
 const jan1 = new Date(now.getFullYear(),0,1);
 const kw = Math.ceil(((now-jan1)/86400000+jan1.getDay()+1)/7);
@@ -5,8 +59,13 @@ document.getElementById('kwBadge').textContent='KW '+kw;
 function showTab(id, btn) {
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  // Einstellungen-Button im Header
+  const settBtn = document.getElementById('settingsNavBtn');
+  if(settBtn) settBtn.classList.remove('active');
   document.getElementById('tab-'+id).classList.add('active');
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
+  // Wenn Einstellungen: Header-Button aktiv markieren
+  if(id==='einstellungen' && settBtn) settBtn.classList.add('active');
 }
 function showSubTab(tabId, subId) {
   // Hide all subpanels in this tab
@@ -30,39 +89,68 @@ const SCORE={
 const CO2_PER_PT=0.12;
 let deptChartObj=null,weekChartObj=null,weeklyData={};
 function matchScore(map,val){
-  const v=(val||'').toLowerCase().trim();
+  // \xa0 ist ein geschütztes Leerzeichen das Microsoft Forms manchmal anhängt
+  const v=(val||'').toLowerCase().replace(/\xa0/g,' ').trim();
   for(const[k,p]of Object.entries(map))if(v.includes(k))return p;
   return null;
 }
 function scoreRow(row){
-  const cols=Object.keys(row);let pts=0;
+  const cols=Object.keys(row);
+  const colFind=(test)=>cols.find(c=>test(c.toLowerCase().replace(/\xa0/g,' ').trim()));
+  let pts=0;
   let commutePts=0,travelPts=0,homePts=0,printPts=0,socialPts=0;
-  const commuteCol=cols.find(c=>c.toLowerCase().includes('verkehrsmittel')&&c.toLowerCase().includes('arbeit'));
+  const commuteCol=colFind(c=>c.includes('verkehrsmittel')&&c.includes('arbeit'));
   if(commuteCol){const s=matchScore(SCORE.commute,row[commuteCol]);if(s!==null){pts+=s;commutePts=s;}}
-  const travelCol=cols.find(c=>c.toLowerCase().includes('dienstreise'));
+  const travelCol=colFind(c=>c.includes('dienstreise'));
   if(travelCol){const s=matchScore(SCORE.travel,row[travelCol]);if(s!==null){pts+=s;travelPts=s;}}
-  const homeCol=cols.find(c=>c.toLowerCase().includes('homeoffice'));
-  if(homeCol){const d=Math.min(5,Math.max(0,parseInt(row[homeCol])||0));homePts=SCORE.homeofficePts[d];pts+=homePts;}
-  const printCol=cols.find(c=>c.toLowerCase().includes('seiten')||c.toLowerCase().includes('gedruckt'));
+  const homeCol=colFind(c=>c.includes('homeoffice'));
+  if(homeCol){const raw=String(row[homeCol]||'0').replace(/\xa0/g,'').trim();const d=Math.min(5,Math.max(0,parseInt(raw)||0));homePts=SCORE.homeofficePts[d];pts+=homePts;}
+  const printCol=colFind(c=>c.includes('seiten')||c.includes('gedruckt'));
   if(printCol){const s=matchScore(SCORE.print,row[printCol]);if(s!==null){pts+=s;printPts=s;}}
-  const socialCol=cols.find(c=>c.toLowerCase().includes('social'));
+  const socialCol=colFind(c=>c.includes('social'));
   if(socialCol){const v=(row[socialCol]||'').toLowerCase();if(v.includes('ja')||v==='true'||v==='1'){pts+=SCORE.socialDay;socialPts=SCORE.socialDay;}}
   row._commutePts=commutePts;row._travelPts=travelPts;row._homePts=homePts;row._printPts=printPts;row._socialPts=socialPts;
   return pts;
 }
-function getAbteilung(row){const col=Object.keys(row).find(c=>c.toLowerCase().includes('abteilung'));return col?(row[col]||'').trim():null;}
-function getEmail(row){const col=Object.keys(row).find(c=>c.toLowerCase().includes('mail'));return col?(row[col]||'').trim():'';}
-function getName(row){const col=Object.keys(row).find(c=>c.toLowerCase()==='name');return col?(row[col]||'').trim():'';}
-function getWeek(row){
-  const col=Object.keys(row).find(c=>c.toLowerCase().includes('startzeit')||c.toLowerCase().includes('start'));
-  if(!col||!row[col])return'KW ?';
-  let d;const val=row[col];
-  if(typeof val==='number')d=new Date(Math.round((val-25569)*86400*1000));
-  else d=new Date(val);
-  if(isNaN(d))return'KW ?';
-  const j1=new Date(d.getFullYear(),0,1);
-  return'KW '+Math.ceil(((d-j1)/86400000+j1.getDay()+1)/7);
+function getAbteilung(row){const col=Object.keys(row).find(c=>c.toLowerCase().replace(/\xa0/g,' ').trim().includes('abteilung'));return col?(row[col]||'').replace(/\xa0/g,' ').trim()||null:null;}
+function _colFind(row, test){ return Object.keys(row).find(c=>test(c.toLowerCase().replace(/\xa0/g,' ').trim())); }
+function getEmail(row){const col=_colFind(row,c=>c.includes('mail'));return col?(row[col]||'').trim():'';}
+function getName(row){
+  const cols=Object.keys(row);
+  const exact=cols.find(c=>c.toLowerCase().replace(/\xa0/g,' ').trim()==='name');
+  if(exact&&(row[exact]||'').trim()) return (row[exact]||'').trim();
+  const partial=cols.find(c=>c.toLowerCase().replace(/\xa0/g,' ').trim().includes('name')&&!c.toLowerCase().includes('abteilung')&&!c.toLowerCase().includes('datei'));
+  if(partial&&(row[partial]||'').trim()) return (row[partial]||'').trim();
+  const namelike=cols.find(c=>{
+    const v=(row[c]||'').toString().trim();
+    return v.includes(' ')&&!v.includes('@')&&!/\d/.test(v)&&v.length>4&&v.length<60;
+  });
+  if(namelike&&(row[namelike]||'').trim()) return (row[namelike]||'').trim();
+  const emailCol=_colFind(row,c=>c.includes('mail'));
+  if(emailCol){
+    const email=(row[emailCol]||'').trim().toLowerCase();
+    const local=email.split('@')[0]||'';
+    if(local.includes('.')){
+      return local.split('.').map(p=>p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+    }
+  }
+  return '';
 }
+function _parseRowDate(row){
+  const col=Object.keys(row).find(c=>c.toLowerCase().includes('startzeit')||c.toLowerCase().includes('start'));
+  if(!col||!row[col])return null;
+  const val=row[col];
+  const d=typeof val==='number'?new Date(Math.round((val-25569)*86400*1000)):new Date(val);
+  return isNaN(d)?null:d;
+}
+function getWeekObj(row){
+  const d=_parseRowDate(row);if(!d)return null;
+  const j1=new Date(d.getFullYear(),0,1);
+  const kw=Math.ceil(((d-j1)/86400000+j1.getDay()+1)/7);
+  const dateStr=d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  return{kw,dateStr,label:'KW '+kw};
+}
+function getWeek(row){const w=getWeekObj(row);return w?w.label:null;}
 /* === NEU: Hilfsfunktionen für Gamification === */
 function animCount(elId,target,suffix,duration){
   const el=document.getElementById(elId);if(!el)return;
@@ -98,7 +186,7 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),4500);
 }
 function renderBadges(depts){
-  const grid=document.getElementById('badgesGrid');if(!depts.length||!grid)return;
+  const grid=document.getElementById('badgesGrid');if(!grid||!depts.length)return;
   const badges=[];
   const byAvg=[...depts].sort((a,b)=>b.avg-a.avg);
   const byTotal=[...depts].sort((a,b)=>b.total-a.total);
@@ -108,7 +196,7 @@ function renderBadges(depts){
   if(consistent)badges.push({ico:'🔄',cls:'silver',name:'Konstant aktiv',who:consistent.name});
   if(depts.length>=2)badges.push({ico:'🌱',cls:'blue',name:'Eco-Vorreiter',who:byAvg[1].name});
   if(depts.length>=3)badges.push({ico:'♻️',cls:'purple',name:'Top-Sparer',who:byTotal[2]?.name||byAvg[2].name});
-  document.getElementById('badgeCount').textContent=badges.length+' Badges';
+  const bcEl=document.getElementById('badgeCount');if(bcEl)bcEl.textContent=badges.length+' Badges';
   grid.innerHTML=badges.map(b=>`<div class="badge-item"><div class="badge-ico ${b.cls}">${b.ico}</div><div><div class="badge-nm">${b.name}</div><div class="badge-who">${b.who}</div></div></div>`).join('');
 }
 function renderMilestones(co2Total){
@@ -142,13 +230,24 @@ function renderMilestones(co2Total){
   setTimeout(()=>{
     track.querySelectorAll('.ms-prog-fill[data-w]').forEach(el=>{el.style.width=el.dataset.w;});
   },300);
-  document.getElementById('msReached').textContent=reached+' erreicht';
+  const msR=document.getElementById('msReached');if(msR)msR.textContent=reached+' erreicht';
   return{reached,highestReached};
 }
 function processData(rows){
-  const seen={};
-  for(const row of rows){const key=getEmail(row)||getName(row);if(key)seen[key]=row;}
-  const deduped=Object.values(seen).filter(r=>getAbteilung(r));
+  // Alle gültigen Einträge behalten (kein last-wins-Dedup der Wochen zerstört)
+  const validRows=rows.filter(r=>getAbteilung(r));
+
+  // Für Abteilungsrangliste: nur neuester Eintrag pro Person zählt
+  const latestPerPerson={};
+  for(const row of validRows){
+    const key=getEmail(row)||getName(row);if(!key)continue;
+    const wObj=getWeekObj(row);
+    const wNum=wObj?wObj.kw:0;
+    if(!latestPerPerson[key]||wNum>=(latestPerPerson[key]._wNum||0))
+      latestPerPerson[key]={...row,_wNum:wNum};
+  }
+  const deduped=Object.values(latestPerPerson);
+
   const deptMap={};
   for(const row of deduped){
     const dept=getAbteilung(row);if(!dept)continue;
@@ -156,13 +255,25 @@ function processData(rows){
     deptMap[dept].points+=scoreRow(row);deptMap[dept].count++;
   }
   const depts=Object.entries(deptMap).map(([name,d])=>({name,total:d.points,avg:Math.round(d.points/d.count),count:d.count})).sort((a,b)=>b.avg-a.avg);
+
+  // _allRows mit ALLEN Einträgen + _kw/_date für Profil/Streak/Wochen
+  const allRowsFull=validRows.map(row=>{
+    const wObj=getWeekObj(row);
+    return{...row,_name:getName(row),_dept:getAbteilung(row),_pts:scoreRow(row),
+           _kw:wObj?String(wObj.kw):null,_date:wObj?wObj.dateStr:''};
+  });
+
   weeklyData={};
-  for(const row of rows.filter(r=>getAbteilung(r))){
-    const w=getWeek(row),dept=getAbteilung(row);
+  let skippedWeeks=0;
+  for(const row of validRows){
+    const wObj=getWeekObj(row),dept=getAbteilung(row);
+    if(!wObj){skippedWeeks++;continue;}
+    const w=wObj.label;
     if(!weeklyData[w])weeklyData[w]={};
     if(!weeklyData[w][dept])weeklyData[w][dept]={points:0,count:0};
     weeklyData[w][dept].points+=scoreRow(row);weeklyData[w][dept].count++;
   }
+  if(skippedWeeks>0)console.warn(`[GreenBoard] ${skippedWeeks} Einträge ohne gültiges Datum – von Wochencharts ausgeschlossen.`);
   const totalPts=depts.reduce((s,d)=>s+d.total,0);
   document.getElementById('mTotal').textContent=totalPts;
   document.getElementById('mTotalSub').textContent=depts.length+' Abteilungen';
@@ -180,7 +291,7 @@ function processData(rows){
   if(lastW)weekPts=Object.values(weeklyData[lastW]).reduce((s,d)=>s+d.points,0);
   if(prevW)prevPts=Object.values(weeklyData[prevW]).reduce((s,d)=>s+d.points,0);
   const weekCO2=Math.round(weekPts*CO2_PER_PT);
-  const todayCO2=Math.max(1,Math.round(weekCO2/5));
+  const todayCO2=weekCO2>0?Math.round(weekCO2/5):0;
   setTimeout(()=>{
     animCount('liToday',todayCO2,' kg',900);
     animCount('liWeek',weekCO2,' kg',1200);
@@ -193,13 +304,13 @@ function processData(rows){
     const flights=(co2Total/110).toFixed(1);
     const days=Math.round(co2Total/3.6);
     const trees=Math.round(co2Total/21);
-    const showers=Math.round(co2Total/0.5);
+    const bahnKm=Math.round(co2Total/0.028);
     const equivList=[
       {icon:'🚗',text:`${km} km Autofahrt`},
       {icon:'✈️',text:`${flights} Kurzflüge`},
       {icon:'⚡',text:`${days} Tage Strom`},
       {icon:'🌳',text:`${trees} Bäume/Jahr CO₂`},
-      {icon:'🚿',text:`${showers} Duschen`},
+      {icon:'🚂',text:`${bahnKm} km Bahnfahrt`},
     ];
     // rotate based on day-of-year
     const dayIdx=Math.floor((Date.now()/86400000))%equivList.length;
@@ -248,7 +359,7 @@ function processData(rows){
 
   /* === NEU v3: Cache + Team-Selektoren befüllen === */
   _allDepts=depts;
-  _allRows=deduped.map(row=>({...row,_name:getName(row),_dept:getAbteilung(row),_pts:scoreRow(row)}));
+  _allRows=allRowsFull;
   window._allDepts=_allDepts; window._allRows=_allRows;
   /* Profil-Auswahl befüllen */
   populateProfilSelect();
@@ -326,14 +437,15 @@ function renderPodium(depts){
   const pb=document.getElementById('podestBadge');
   if(pb)pb.textContent=depts.length+' Abteilungen';
   // Podest-Höhen: 1.Platz höher als 2., 2. höher als 3.
-  const heights={1:110,2:78,3:56};
+  const heights={1:140,2:96,3:68};
   // Reihenfolge im Podest: links=2, mitte=1, rechts=3
   const order=top3.length>=3?[top3[1],top3[0],top3[2]]
              :top3.length===2?[top3[1],top3[0],null]
              :[null,top3[0],null];
   const posClass=['p2','p1','p3'];
   const posRank=[2,1,3];
-  const medals=['🥈','🥇','🥉'];
+  const CROWN_SVG='<svg class="podium-crown" viewBox="0 0 24 24" fill="currentColor"><path d="M2 19h20l-1.5-9-4.5 4-4-7-4 7-4.5-4L2 19z"/></svg>';
+  const MEDAL_SVG=(cls)=>`<svg class="podium-medal-ico ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="6"/><path d="M9 9 6 2"/><path d="M15 9l3-7"/><path d="M12 12v4"/></svg>`;
   const colorsArr=[_teamColors[1]||'#2d8c34',_teamColors[0]||'#1f6b24',_teamColors[2]||'#a0674a'];
   function trendFor(name){
     if(!lastW||!prevW)return'';
@@ -345,16 +457,22 @@ function renderPodium(depts){
   // Build columns HTML
   const colsHtml=order.map((d,idx)=>{
     if(!d)return'<div style="flex:1"></div>';
-    const pc=posClass[idx],rank=posRank[idx],medal=medals[idx];
+    const pc=posClass[idx],rank=posRank[idx];
     const av=_teamAvatars[d.name];
     const init=d.name.split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
     const avHtml=av
       ?`<img src="${av}" class="podium-av ${pc}" style="object-fit:cover;" alt="${d.name}">`
       :`<div class="podium-av ${pc}" style="background:${colorsArr[idx]}">${init}</div>`;
-    return`<div class="podium-col">
+    const topIco=rank===1?CROWN_SVG:MEDAL_SVG(pc);
+    const sparkles=rank===1?`
+        <span class="podium-sparkle" style="width:6px;height:6px;left:-14px;top:6px;animation-delay:.2s;"></span>
+        <span class="podium-sparkle" style="width:4px;height:4px;right:-10px;top:18px;animation-delay:1.1s;"></span>
+        <span class="podium-sparkle" style="width:5px;height:5px;left:50%;top:-30px;animation-delay:2s;"></span>`:'';
+    return`<div class="podium-col ${pc}">
       <div class="podium-avatar-zone">
-        <div class="podium-medal">${medal}</div>
+        ${topIco}
         ${avHtml}
+        ${sparkles}
       </div>
       <div class="podium-name" title="${d.name}">${d.name}</div>
       <div class="podium-pts">${d.avg} Pkt./Person</div>
@@ -461,7 +579,14 @@ function handleFile(event){
       const cols=rows.length?Object.keys(rows[0]):[];
       renderValidation(cols,file.name,rows.length);
       const {ok}=validateColumns(cols);
-      if(ok||rows.some(r=>getAbteilung(r)))processData(rows);
+      if(ok||rows.some(r=>getAbteilung(r))){
+        processData(rows);
+        try{
+          const dateStr=new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+          _ls.setItem('gb_excelData',JSON.stringify(rows));
+          _ls.setItem('gb_excelDate',dateStr);
+        }catch(e){console.warn('[GreenBoard] localStorage voll.',e);}
+      }
     }catch(err){
       document.getElementById('fileStatus').innerHTML=`<div class="file-error">❌ Fehler beim Lesen: ${err.message}<br><small style="opacity:0.7">Bitte .xlsx, .xls oder .csv-Datei aus Microsoft Forms hochladen.</small></div>`;
     }
@@ -581,15 +706,17 @@ function renderTeamTab(){
   const ml=document.getElementById('memberList');
   if(!members.length){ml.innerHTML='<div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-text">Keine Einträge</div></div>';return;}
   const memberHtml=members.map((m,i)=>{
+    const displayName = anonymizeName(m._name||'–', i);
     const init=(m._name||'?').split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase();
+    const anonInit = window._anonymMode ? String(i+1).padStart(2,'0') : init;
     const mco2=(m._pts*CO2_PER_PT).toFixed(1);
     const above=dept.avg>0?Math.round(((m._pts-dept.avg)/dept.avg)*100):0;
     const badge=getTeamBadge(m._pts);
     const chip=badge?`<span class="member-lvl-chip ${badge.level}">${badge.icon} ${badge.label}</span>`:'';
     _memberCache[m._name]={...m,co2:mco2,rank:i+1,total:members.length,avgPts:dept.avg,above};
     return`<div class="member-row" onclick="openMemberModal('${(m._name||'').replace(/'/g,"\\'")}')">
-      <div class="member-avatar">${init}</div>
-      <div style="flex:1;min-width:0;"><div class="member-name-txt">${m._name||'–'}</div><div class="member-sub">${mco2} kg CO₂ · ${above>=0?'+':''}${above}% zum Team-Ø</div></div>
+      <div class="member-avatar">${anonInit}</div>
+      <div style="flex:1;min-width:0;"><div class="member-name-txt">${displayName}</div><div class="member-sub">${mco2} kg CO₂ · ${above>=0?'+':''}${above}% zum Team-Ø</div></div>
       ${chip}
       <div><div class="member-pts">${m._pts}</div><div class="member-pts-lbl">Punkte</div></div>
     </div>`;
@@ -705,34 +832,10 @@ const demo=[
   {Name:'Tyron Arnold','E-Mail':'tyron@bbbank.de',Startzeit:'21.04.2026 09:05','In welcher Abteilung arbeitest du? ':'OIT','Welches Verkehrsmittel hast du genutzt um zur Arbeit zu gelangen? ':'Fahrrad','Hattest du diese Woche eine Dienstreise? - Wenn ja, mit welchem Verkehrsmittel? ':'Bahn','Wie viele Tage warst du diese Woche im HomeOffice? (0-5)':'3','Wie viele Seiten hast du diese Woche gedruckt? ':'0 Seiten','Haben Sie an einem Social Day teilgenommen?':'Nein'},
   {Name:'Christof Warsinsky','E-Mail':'christof@bbbank.de',Startzeit:'14.04.2026 09:00','In welcher Abteilung arbeitest du? ':'DMS','Welches Verkehrsmittel hast du genutzt um zur Arbeit zu gelangen? ':'ÖPVN','Hattest du diese Woche eine Dienstreise? - Wenn ja, mit welchem Verkehrsmittel? ':'Keine Dienstreise','Wie viele Tage warst du diese Woche im HomeOffice? (0-5)':'1','Wie viele Seiten hast du diese Woche gedruckt? ':'11-30 Seiten','Haben Sie an einem Social Day teilgenommen?':'Nein'},
 ];
-/* ===== v4: Team-Avatar + Motto Storage ===== */
+/* ===== Team-Avatar + Motto Storage (pro Abteilung, persistent) ===== */
 let _teamAvatars={};
-const _teamColors=['#1f6b24','#2d8c34','#a0674a','#8a8fa8','#c8a84b','#5ec466'];
-function handleTeamAvatar(event){
-  const file=event.target.files[0];if(!file)return;
-  const sel=document.getElementById('ownTeamSelect');
-  const own=sel?sel.value:'';if(!own)return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    _teamAvatars[own]=e.target.result;
-    updateTeamAvatarDisplay(own);
-    renderLeaderboard(window._lastDepts||[]);
-  };
-  reader.readAsDataURL(file);
-}
-function updateTeamAvatarDisplay(own){
-  const el=document.getElementById('teamAvatarLarge');if(!el)return;
-  const data=_teamAvatars[own];
-  if(data){el.innerHTML='';el.style.backgroundImage=`url(${data})`;el.style.backgroundSize='cover';el.style.backgroundPosition='center';el.style.fontSize='0';}
-  else{el.style.backgroundImage='';el.style.fontSize='26px';const d=_allDepts.find(x=>x.name===own);el.textContent=d?(d.name.split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?'):'?';}
-}
-function saveTeamMotto(val){
-  const sel=document.getElementById('ownTeamSelect');
-  if(!sel||!sel.value)return;
-  _teamMottos=_teamMottos||{};
-  _teamMottos[sel.value]=val;
-}
 let _teamMottos={};
+const _teamColors=['#1f6b24','#2d8c34','#a0674a','#8a8fa8','#c8a84b','#5ec466'];
 
 /* ===== v4: CO₂-Info Popup Toggle ===== */
 function toggleCO2Info(e){
@@ -770,28 +873,6 @@ function renderRankBadgePill(badge){
   const el=document.getElementById('tkRankBadgePill');if(!el)return;
   if(!badge){el.innerHTML='';return;}
   el.innerHTML=`<span class="rank-badge-pill ${badge.level}">${badge.icon} ${badge.label}-Badge</span>`;
-}
-
-/* ===== v4: Team-Profil-Karte aktualisieren ===== */
-function updateTeamProfileCard(own,dept,rank){
-  const card=document.getElementById('teamProfileCard');if(!card)return;
-  card.style.display='flex';
-  document.getElementById('tpName').textContent=own;
-  const mottoEl=document.getElementById('tpMotto');
-  if(mottoEl)mottoEl.value=(_teamMottos&&_teamMottos[own])||'';
-  document.getElementById('tpRankPill').textContent=`Platz ${rank} von ${_allDepts.length}`;
-  const badge=getTeamBadge(dept.avg);
-  const tpBadge=document.getElementById('tpBadgePill');
-  if(tpBadge)tpBadge.textContent=badge?`${badge.icon} ${badge.label}`:'🌱 Kein Badge';
-  document.getElementById('tpMembersPill').textContent=`${dept.count} Mitglieder`;
-  updateTeamAvatarDisplay(own);
-  /* Pinned badge */
-  const pinnedKey='pinnedBadge_'+own;
-  const pinned=_teamMottos&&_teamMottos[pinnedKey];
-  const pinnedDiv=document.getElementById('tpPinnedBadge');
-  const pinnedTxt=document.getElementById('tpPinnedText');
-  if(pinnedDiv&&pinnedTxt&&pinned){pinnedDiv.style.display='flex';pinnedTxt.textContent=pinned;}
-  else if(pinnedDiv)pinnedDiv.style.display='none';
 }
 
 /* ===== v4: Badge-Sammlung Daten ===== */
@@ -856,17 +937,18 @@ function computeEarnedBadges(depts,own){
     if(myDept.avg>=60)_earnedBadges.add('gold_team');
     if(myDept.avg>=80)_earnedBadges.add('platin_team');
     if(rank===1)_earnedBadges.add('team_nr1');
-    if(myDept.count>=2)_earnedBadges.add('serie_1');
-    if(myDept.count>=3)_earnedBadges.add('social_hero');
+    // serie_1 wird unten anhand von Wochendaten vergeben
+    // social_hero wird unten korrekt via _socialPts vergeben
   }
   // Badges basierend auf verfügbaren Daten
   const allRows=_allRows||[];
   const ownRows=own?allRows.filter(r=>(r._dept||'')===own):allRows;
-  if(ownRows.some(r=>(r['Welches Verkehrsmittel hast du genutzt um zur Arbeit zu gelangen? ']||'').toLowerCase().includes('fahrrad')))_earnedBadges.add('bike_hero');
-  if(ownRows.some(r=>(r['Welches Verkehrsmittel hast du genutzt um zur Arbeit zu gelangen? ']||'').toLowerCase().includes('öpv')))_earnedBadges.add('opnv_profi');
-  if(ownRows.some(r=>(r['Welches Verkehrsmittel hast du genutzt um zur Arbeit zu gelangen? ']||'').toLowerCase().includes('fahrgemeinschaft')))_earnedBadges.add('fahrgemeinschaft');
-  if(ownRows.some(r=>(r['Wie viele Seiten hast du diese Woche gedruckt? ']||'').toLowerCase().includes('0 seiten')))_earnedBadges.add('druckfrei');
-  if(ownRows.some(r=>(r['Haben Sie an einem Social Day teilgenommen?']||'').toLowerCase().includes('ja')))_earnedBadges.add('social_hero');
+  // Badges auf Basis berechneter Punkte-Felder (spaltenname-unabhängig)
+  if(ownRows.some(r=>(r._commutePts||0)>=15))_earnedBadges.add('bike_hero');
+  if(ownRows.some(r=>(r._commutePts||0)>=10&&(r._commutePts||0)<15))_earnedBadges.add('opnv_profi');
+  if(ownRows.some(r=>(r._commutePts||0)===5))_earnedBadges.add('fahrgemeinschaft');
+  if(ownRows.some(r=>(r._printPts||0)>=15))_earnedBadges.add('druckfrei');
+  if(ownRows.some(r=>(r._socialPts||0)>0))_earnedBadges.add('social_hero');
   // Aktivität-Serie basierend auf Wochen
   const wkeys=Object.keys(weeklyData||{}).sort();
   if(wkeys.length>=3)_earnedBadges.add('serie_3');
@@ -1002,14 +1084,16 @@ function filterMembers(query){
   }
   const own=document.getElementById('ownTeamSelect')?.value||'';
   const dept=_allDepts.find(d=>d.name===own);
-  ml.innerHTML=matches.sort((a,b)=>b._pts-a._pts).map(m=>{
+  ml.innerHTML=matches.sort((a,b)=>b._pts-a._pts).map((m,i)=>{
+    const displayName = anonymizeName(m._name||'–', i);
     const init=(m._name||'?').split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase();
+    const anonInit = window._anonymMode ? String(i+1).padStart(2,'0') : init;
     const above=dept&&dept.avg>0?Math.round(((m._pts-dept.avg)/dept.avg)*100):0;
     const badge=getTeamBadge(m._pts);
     const chip=badge?`<span class="member-lvl-chip ${badge.level}">${badge.icon} ${badge.label}</span>`:'';
     return`<div class="member-row" onclick="openMemberModal('${(m._name||'').replace(/'/g,"\\'")}')">
-      <div class="member-avatar">${init}</div>
-      <div style="flex:1;min-width:0;"><div class="member-name-txt">${m._name||'–'}</div><div class="member-sub">${m.co2} kg CO₂ · ${above>=0?'+':''}${above}% zum Team-Ø</div></div>
+      <div class="member-avatar">${anonInit}</div>
+      <div style="flex:1;min-width:0;"><div class="member-name-txt">${displayName}</div><div class="member-sub">${m.co2} kg CO₂ · ${above>=0?'+':''}${above}% zum Team-Ø</div></div>
       ${chip}
       <div><div class="member-pts">${m._pts}</div><div class="member-pts-lbl">Punkte</div></div>
     </div>`;
@@ -1028,7 +1112,7 @@ function exportPDF(){
   window.print();
 }
 
-processData(demo);
+// Demo-Daten entfernt – Dashboard startet leer oder mit gespeicherten Daten
 renderTips();
 
 /* ============================================================
@@ -1041,8 +1125,10 @@ function calcESGScore(depts, co2Total, deduped){
   const avgAll = Math.round(depts.reduce((s,d)=>s+d.avg,0)/depts.length);
   const maxPossible = 110; // max pts per person
   const eScore = Math.min(100, Math.round((avgAll/maxPossible)*100));
-  const participationRate = Math.min(100, Math.round((deduped.length/Math.max(1,deduped.length))*100));
-  const sScore = Math.min(100, 70 + (depts.length>3?15:0) + (participationRate>80?15:0));
+  // Social-Score: basiert auf Social-Day-Rate (echte Daten, nicht tautologisch)
+  const socialParticipants=deduped.filter(r=>(r._socialPts||0)>0).length;
+  const socialRate=deduped.length>0?Math.round((socialParticipants/deduped.length)*100):0;
+  const sScore=Math.min(100, 70+(depts.length>3?15:0)+(socialRate>20?15:0));
   const weeks = Object.keys(weeklyData).length;
   const gScore = Math.min(100, 50 + weeks*10);
   const overall = Math.round((eScore*0.5 + sScore*0.3 + gScore*0.2));
@@ -1084,10 +1170,18 @@ function renderESGImpact(depts, co2Total, deduped){
   const totalPts = depts.reduce((s,d)=>s+d.total,0);
 
   // Derived impact estimates
-  const energyKWh = Math.round(deduped.length * 3.2); // ~3.2 kWh per HO day saved commute
-  const paperSaved = Math.round(totalPts * 0.8); // rough estimate from print scores
-  const mobilityKm = Math.round(totalPts * 1.2); // eco commute km
+  const totalHODays = deduped.reduce((s,r)=>s+Math.round((r._homePts||0)/8),0);
+  const energyKWh = Math.round(totalHODays * 3.2); // 3.2 kWh Pendelersparnis pro HO-Tag
+  // Papier: 0P = 30+ Seiten gespart vs. 15P = 0 Seiten gedruckt
+  // Schätzung: (15 - printPts) / 15 * 30 Seiten vermieden pro Person
+  const totalPrintPts = deduped.reduce((s,r)=>s+(r._printPts||0),0);
+  const paperSaved = Math.round(deduped.length > 0
+    ? deduped.reduce((s,r)=>{ const pts=r._printPts||0; return s + Math.max(0,Math.round((15-pts)/15*30)); },0)
+    : 0);
+  const totalCommutePts = deduped.reduce((s,r)=>s+(r._commutePts||0),0);
+  const mobilityKm = Math.round(totalCommutePts * 0.8); // Schätzung: grüne Pendelpunkte × 0.8 km-Faktor
   const waterL = Math.round(deduped.length * 55); // per person estimate
+  const activeWeeks = Object.keys(weeklyData).length; // echte Anzahl Messwochen
 
   // ESG Score
   const {score,e,s,g} = calcESGScore(depts,co2Total,deduped);
@@ -1125,10 +1219,10 @@ function renderESGImpact(depts, co2Total, deduped){
   // Impact cards
   const impactData=[
     {id:'esgImpCO2',barId:'esgBarCO2',equivId:'esgEquivCO2',val:co2Total,max:250,equiv:`≈ ${Math.round(co2Total/21)} Bäume/Jahr`},
-    {id:'esgImpEnergy',barId:'esgBarEnergy',equivId:'esgEquivEnergy',val:energyKWh,max:5000,equiv:`≈ ${Math.round(energyKWh/2.4)} Haushaltsstunden`},
+    {id:'esgImpEnergy',barId:'esgBarEnergy',equivId:'esgEquivEnergy',val:energyKWh,max:5000,equiv:`≈ ${Math.round(energyKWh/3.5)} Tage Strom (Ø Haushalt)`},
     {id:'esgImpPaper',barId:'esgBarPaper',equivId:'esgEquivPaper',val:paperSaved,max:10000,equiv:`≈ ${Math.round(paperSaved/8333)} Bäume geschont`},
     {id:'esgImpMobility',barId:'esgBarMobility',equivId:'esgEquivMobility',val:mobilityKm,max:5000,equiv:`fossil-freie Wege`},
-    {id:'esgImpWater',barId:'esgBarWater',equivId:'esgEquivWater',val:waterL,max:50000,equiv:`≈ ${Math.round(waterL/70)} Duschgänge gespart`},
+    {id:'esgImpWater',barId:'esgBarWater',equivId:'esgEquivWater',val:activeWeeks,max:26,equiv:'Messwochen im Wettbewerb'},
   ];
   impactData.forEach(d=>{
     const el=document.getElementById(d.id); if(el) el.textContent=d.val.toLocaleString('de-DE');
@@ -1147,7 +1241,7 @@ function renderESGImpact(depts, co2Total, deduped){
     const lp=Object.values(weeklyData[lastW]).reduce((s,d)=>s+d.points,0);
     const pp=Object.values(weeklyData[prevW]).reduce((s,d)=>s+d.points,0);
     const diff=pp>0?Math.round(((lp-pp)/pp)*100):0;
-    tb.textContent=(diff>=0?'↑ +':'↓ ')+diff+'% zum Vormonat';
+    tb.textContent=(diff>=0?'↑ +':'↓ ')+diff+'% zur Vorwoche';
     tb.style.background=diff>=0?'var(--green-100)':'#fee2e2';
     tb.style.color=diff>=0?'var(--green-700)':'#9b1c1c';
   }
@@ -1179,12 +1273,14 @@ function renderESGImpact(depts, co2Total, deduped){
   // Category rows
   const catEl=document.getElementById('esgCatRows');
   if(catEl){
+    // Echte Kategorie-Aufschlüsselung aus tatsächlichen Daten
+    const _ar=window._allRows||[];
     const cats=[
-      {ico:'🏠',name:'Homeoffice',pts:Math.round(totalPts*0.35)},
-      {ico:'🚲',name:'Mobilität',pts:Math.round(totalPts*0.20)},
-      {ico:'✈️',name:'Dienstreise',pts:Math.round(totalPts*0.18)},
-      {ico:'🖨️',name:'Drucken',pts:Math.round(totalPts*0.15)},
-      {ico:'🤝',name:'Social Day',pts:Math.round(totalPts*0.12)},
+      {ico:'🏠',name:'Homeoffice',  pts:_ar.reduce((s,r)=>s+(r._homePts||0),0)},
+      {ico:'🚲',name:'Mobilität',   pts:_ar.reduce((s,r)=>s+(r._commutePts||0),0)},
+      {ico:'✈️',name:'Dienstreise', pts:_ar.reduce((s,r)=>s+(r._travelPts||0),0)},
+      {ico:'🖨️',name:'Drucken',    pts:_ar.reduce((s,r)=>s+(r._printPts||0),0)},
+      {ico:'🤝',name:'Social Day',  pts:_ar.reduce((s,r)=>s+(r._socialPts||0),0)},
     ];
     const maxPts=Math.max(...cats.map(c=>c.pts))||1;
     catEl.innerHTML=cats.map(c=>`<div class="esg-cat-row">
@@ -1230,8 +1326,15 @@ function renderSpotlight(){
 
   // Team name
   const tn=document.getElementById('spTeamName'); if(tn)tn.textContent=own;
-  const motto=SPOTLIGHT_MOTTOS[Math.abs(own.split('').reduce((a,c)=>a+c.charCodeAt(0),0))%SPOTLIGHT_MOTTOS.length];
-  const mt=document.getElementById('spMotto'); if(mt)mt.textContent=motto;
+  const customMotto=_teamMottos[own]||_ls.getItem('gb_motto_'+own);
+  const defaultMotto=SPOTLIGHT_MOTTOS[Math.abs(own.split('').reduce((a,c)=>a+c.charCodeAt(0),0))%SPOTLIGHT_MOTTOS.length];
+  if(customMotto)_teamMottos[own]=customMotto;
+  const mt=document.getElementById('spMotto'); if(mt)mt.textContent=customMotto||defaultMotto;
+
+  // Team-Profilbild: pro Abteilung laden, sonst zurücksetzen
+  const savedTeamImg=_teamAvatars[own]||_ls.getItem('gb_teamimg_'+own);
+  if(savedTeamImg)_teamAvatars[own]=savedTeamImg;
+  applyTeamImg(savedTeamImg||null);
 
   // Level badge chip
   const lb=document.getElementById('spLevelBadge');
@@ -1248,8 +1351,10 @@ function renderSpotlight(){
   if(avEl){
     const shown=members.slice(0,6);
     avEl.innerHTML=shown.map((m,i)=>{
-      const init=(m._name||'?').split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase();
-      return`<div class="sp-avatar" style="background:${colors[i%colors.length]}">${init}</div>`;
+      const init = window._anonymMode
+        ? String(i+1).padStart(2,'0')
+        : (m._name||'?').split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase();
+      return`<div class="sp-avatar" style="background:${colors[i%colors.length]}" title="${window._anonymMode?'Mitglied #'+(i+1):(m._name||'?')}">${init}</div>`;
     }).join('')+(members.length>6?`<div class="sp-avatar sp-avatar-more">+${members.length-6}</div>`:'');
   }
 
@@ -1317,22 +1422,75 @@ function renderSpotlight(){
 /* ── Einstellungen: Dark Mode ─────────────────────────────── */
 function applyDarkMode(on){
   document.body.classList.toggle('dark-mode', on);
-  localStorage.setItem('gb_darkmode', on?'1':'0');
+  _ls.setItem('gb_darkmode', on?'1':'0');
 }
 function applyCompact(on){
   document.body.classList.toggle('compact-mode', on);
-  localStorage.setItem('gb_compact', on?'1':'0');
+  _ls.setItem('gb_compact', on?'1':'0');
+}
+function applyPerformance(on){
+  document.body.classList.toggle('perf-mode', on);
+  _ls.setItem('gb_perf', on?'1':'0');
+}
+function applyPresentation(on){
+  document.body.classList.toggle('presentation-mode', on);
+  _ls.setItem('gb_presentation', on?'1':'0');
+  // Falls Einstellungen-Tab aktiv ist beim Einschalten → zur Rangliste wechseln
+  if(on){
+    const activeTab=document.querySelector('.tab-content.active');
+    if(activeTab && activeTab.id==='tab-einstellungen') showTab('rangliste', document.querySelector('.nav-tab'));
+  }
+}
+function applyFocus(on){
+  document.body.classList.toggle('focus-mode', on);
+  _ls.setItem('gb_focus', on?'1':'0');
+  // Falls ein ausgeblendeter Tab aktiv ist → zur Rangliste
+  if(on){
+    const hiddenTabs=['tab-mitmachen','tab-spielregeln','tab-profil'];
+    const activeTab=document.querySelector('.tab-content.active');
+    if(activeTab && hiddenTabs.includes(activeTab.id)) showTab('rangliste', document.querySelector('.nav-tab'));
+  }
+}
+function applyInfoTooltips(on){
+  document.body.classList.toggle('no-info-tooltips', !on);
+  _ls.setItem('gb_infotooltips', on?'1':'0');
+}
+function copyFeedbackEmail(btn){
+  navigator.clipboard.writeText('maxim.makarova@bbbank.de').then(()=>{
+    const orig=btn.innerHTML;
+    btn.innerHTML='<svg style="width:11px;height:11px;flex-shrink:0;" viewBox="0 0 16 16" fill="none"><path d="M2.5 8.5l3.5 3.5 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Kopiert!';
+    btn.style.color='var(--green-700)';
+    btn.style.borderColor='var(--green-400)';
+    setTimeout(()=>{btn.innerHTML=orig;btn.style.color='';btn.style.borderColor='';},2000);
+  });
 }
 
-/* ── Anonymer Modus ──────────────────────────────────────── */
+
 window._anonymMode = false;
 window._hideEmail = true;
 function applyAnonym(on){
   window._anonymMode = on;
-  localStorage.setItem('gb_anonym', on?'1':'0');
-  // Re-render leaderboard if data present
-  if(window._allDepts && window._allDepts.length) renderLeaderboard(window._allDepts);
+  _ls.setItem('gb_anonym', on?'1':'0');
+  if(window._allDepts && window._allDepts.length){
+    renderLeaderboard(window._allDepts);
+    renderPodium(window._allDepts);
+    const own=document.getElementById('ownTeamSelect')?.value;
+    if(own) renderSpotlight();
+    if(typeof renderTeamTab==='function' && own) renderTeamTab();
+    // Re-render Mitglied-Suche falls sichtbar
+    const q=document.getElementById('memberSearch')?.value?.toLowerCase()||'';
+    if(typeof searchMembers==='function') searchMembers(q);
+  }
 }
+function applyHideEmail(on){
+  window._hideEmail = on;
+  _ls.setItem('gb_hideEmail', on?'1':'0');
+  // E-Mail-Spalten in allen sichtbaren Tabellen/Listen ausblenden
+  document.querySelectorAll('.member-email-cell, .email-cell').forEach(el=>{
+    el.style.display = on ? 'none' : '';
+  });
+}
+
 function anonymizeName(name, idx){
   if(!window._anonymMode) return name;
   return 'Mitglied #' + String(idx+1).padStart(2,'0');
@@ -1352,16 +1510,64 @@ function exportCSV(){
   URL.revokeObjectURL(url);
 }
 
+/* ── Platzierungen & Punkte als Excel (.xlsx) ─────────────── */
+function exportExcelRanking(){
+  if(!window._allDepts || !window._allDepts.length){ alert('Bitte zuerst Daten laden.'); return; }
+  const hideEmail = window._hideEmail;
+  const anonym = document.getElementById('settingAnonym')?.checked;
+
+  // Sheet 1: Abteilungs-Rangliste
+  const deptRows = window._allDepts.map((d,i)=>({
+    'Platz': i+1,
+    'Abteilung': d.name,
+    'Gesamtpunkte': d.total,
+    'Ø Punkte/Person': d.avg,
+    'Mitglieder': d.count,
+    'CO₂ gespart (kg)': Math.round(d.total*0.12),
+  }));
+
+  // Sheet 2: Mitarbeitende mit Platzierung pro Abteilung
+  const memberRows = [];
+  window._allDepts.forEach(d=>{
+    const members = (window._allRows||[]).filter(r=>(r._dept||'')===d.name).sort((a,b)=>b._pts-a._pts);
+    members.forEach((m,i)=>{
+      memberRows.push({
+        'Abteilung': d.name,
+        'Platz (Team-intern)': i+1,
+        'Name': anonym ? ('Mitglied #'+(i+1)) : (m._name||'–'),
+        'Punkte': m._pts,
+        'CO₂ (kg)': +(m._pts*0.12).toFixed(1),
+        '% zum Team-Ø': d.avg>0 ? Math.round(((m._pts-d.avg)/d.avg)*100) : 0,
+      });
+    });
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(deptRows);
+  ws1['!cols'] = [{wch:8},{wch:24},{wch:14},{wch:16},{wch:12},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Abteilungs-Ranking');
+
+  const ws2 = XLSX.utils.json_to_sheet(memberRows);
+  ws2['!cols'] = [{wch:22},{wch:18},{wch:24},{wch:10},{wch:10},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Mitarbeitende');
+
+  const stamp = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `greenboard_platzierungen_${stamp}.xlsx`);
+}
+
 /* ── Mein Profil ─────────────────────────────────────────── */
-window._profilImg = null;
+window._profilImgs = {};
 function handleProfilImg(e){
   const file = e.target.files[0]; if(!file) return;
+  const sel = document.getElementById('profilPersonSelect');
+  const name = sel ? sel.value : '';
+  if(!name){ alert('Bitte zuerst eine Person auswählen.'); return; }
   const reader = new FileReader();
   reader.onload = ev => {
-    window._profilImg = ev.target.result;
+    window._profilImgs[name] = ev.target.result;
     const av = document.getElementById('profilAvatar');
     av.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-    localStorage.setItem('gb_profilimg', ev.target.result);
+    _ls.setItem('gb_profilimg_'+name, ev.target.result);
   };
   reader.readAsDataURL(file);
 }
@@ -1406,14 +1612,24 @@ function renderProfil(){
     document.getElementById('phCO2').textContent='–';
     return;
   }
+  if(_vsModeActive){
+    populateVSSelect();
+    renderVS();
+    if(content) content.style.display='none';
+    if(empty) empty.style.display='none';
+    return;
+  }
   if(content) content.style.display='block';
   if(empty) empty.style.display='none';
 
-  // Restore profil img
-  const savedImg = localStorage.getItem('gb_profilimg');
+  // Profilbild: pro Person laden, sonst auf Initialen zurücksetzen
+  const av=document.getElementById('profilAvatar');
+  const savedImg = window._profilImgs[name] || _ls.getItem('gb_profilimg_'+name);
   if(savedImg){
-    const av=document.getElementById('profilAvatar');
+    window._profilImgs[name]=savedImg;
     av.innerHTML=`<img src="${savedImg}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+  } else {
+    av.innerHTML = name.split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
   }
 
   const rows = window._allRows.filter(r=>r._name===name);
@@ -1519,6 +1735,47 @@ function renderProfil(){
 
   // ── Persönliche Badges ──────────────────────────────────
   const weeksActive=Object.keys((()=>{const m={};rows.forEach(r=>{if(r._kw)m[r._kw]=1;});return m;})()).length;
+
+  /* ── Streak Banner ───────────────────────────────────── */
+  (()=>{
+    // Collect all KWs with activity (as numbers)
+    const kwSet=new Set();
+    rows.forEach(r=>{ if(r._kw) kwSet.add(parseInt(r._kw,10)); });
+    const kwArr=[...kwSet].filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+    // Calculate current streak (consecutive weeks counting back from latest)
+    let streak=0;
+    if(kwArr.length>0){
+      const last=kwArr[kwArr.length-1];
+      for(let i=kwArr.length-1;i>=0;i--){
+        if(kwArr[kwArr.length-1]-(kwArr.length-1-i)===kwArr[i]) streak++;
+        else break;
+      }
+    }
+    // Build last 8 weeks dot indicators
+    const allKwsGlobal=Object.keys(weeklyData).map(k=>parseInt(k,10)).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+    const latestKw=allKwsGlobal.length>0?allKwsGlobal[allKwsGlobal.length-1]:0;
+    const dotWeeks=Array.from({length:8},(_,i)=>latestKw-7+i);
+    const banner=document.getElementById('streakBanner');
+    const flameEl=document.getElementById('streakFlame');
+    const countEl=document.getElementById('streakCount');
+    const labelEl=document.getElementById('streakLabel');
+    const dotsEl=document.getElementById('streakDots');
+    if(!banner)return;
+    if(streak>=1){
+      banner.classList.add('active');
+      countEl.textContent=streak+' Woche'+(streak!==1?'n':'')+' 🔥';
+      labelEl.textContent=streak>=5?'Mega-Streak! Weiter so!':streak>=3?'Stark! Nicht abreißen lassen.':'Guter Start – bleib dabei!';
+    } else {
+      banner.classList.remove('active');
+      countEl.textContent='Noch kein Streak';
+      labelEl.textContent='Jeden Montag Aktionen eintragen – Streak starten!';
+    }
+    dotsEl.innerHTML=dotWeeks.map(kw=>{
+      const active=kwSet.has(kw);
+      const future=kw>latestKw;
+      return`<div class="streak-dot ${future?'':active?'hit':'miss'}" title="KW ${kw}${active?' ✓ aktiv':future?'':' –'}"></div>`;
+    }).join('');
+  })();
   const isPaperless=rows.some(r=>r._printPts>=15);
   const hasBike=rows.some(r=>r._commutePts>=15);
   const hasHome3=rows.some(r=>r._homePts>=24);
@@ -1570,41 +1827,178 @@ function renderProfil(){
       <div class="pw-pts">${v.pts}</div>
       <div class="pw-date">${v.date}</div>
     </div>`).join('') || '<div class="empty-state"><div class="empty-state-text">Keine Wochen-Daten</div></div>';
+
+  // ── Performanzverlauf Chart ──────────────────────────
+  (()=>{
+    const sorted=Object.entries(weekMap).sort((a,b)=>a[0].localeCompare(b[0]));
+    const labels=sorted.map(([kw])=>'KW '+kw);
+    const data=sorted.map(([,v])=>v.pts);
+    // Trend badge
+    const badge=document.getElementById('ppTrendBadge');
+    if(badge&&data.length>=2){
+      const first=data[0],last=data[data.length-1];
+      const diff=Math.round(((last-first)/Math.max(1,first))*100);
+      badge.textContent=(diff>=0?'▲ +':'▼ ')+diff+'% seit KW '+sorted[0][0];
+      badge.style.background=diff>=0?'var(--green-100)':'#fee2e2';
+      badge.style.color=diff>=0?'var(--green-700)':'#991b1b';
+    } else if(badge){ badge.textContent=data.length===1?'1 Woche':'Keine Daten'; }
+    const canvas=document.getElementById('profilTrendChart');
+    if(!canvas)return;
+    // Destroy old instance if exists
+    if(window._profilTrendChartInst){window._profilTrendChartInst.destroy();window._profilTrendChartInst=null;}
+    if(!data.length){canvas.parentElement.innerHTML='<div class="empty-state" style="padding:2rem"><div class="empty-state-text">Noch keine Wochendaten</div></div>';return;}
+    const avgVal=Math.round(data.reduce((s,v)=>s+v,0)/data.length);
+    window._profilTrendChartInst=new Chart(canvas,{
+      type:'line',
+      data:{
+        labels,
+        datasets:[
+          {
+            label:'Punkte',
+            data,
+            borderColor:'#3aaa42',
+            backgroundColor:'rgba(58,170,66,0.10)',
+            pointBackgroundColor:data.map(v=>v===Math.max(...data)?'#c8a84b':v===0?'#e5e7eb':'#3aaa42'),
+            pointBorderColor:data.map(v=>v===Math.max(...data)?'#c8a84b':v===0?'#d1d5db':'#3aaa42'),
+            pointRadius:data.map(v=>v===Math.max(...data)?7:v===0?4:5),
+            pointHoverRadius:8,
+            borderWidth:2.5,
+            tension:0.38,
+            fill:true,
+          },
+          {
+            label:'Ø',
+            data:data.map(()=>avgVal),
+            borderColor:'rgba(200,168,75,0.5)',
+            borderDash:[4,4],
+            borderWidth:1.5,
+            pointRadius:0,
+            fill:false,
+          }
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:'rgba(255,255,255,0.95)',
+            titleColor:'#0d2b0f',bodyColor:'#4a6b4d',
+            borderColor:'rgba(45,140,52,0.2)',borderWidth:1,
+            padding:10,
+            callbacks:{
+              title:ctx=>ctx[0].label,
+              label:ctx=>ctx.datasetIndex===0?ctx.parsed.y+' Punkte':'Ø '+ctx.parsed.y+' Pkt.'
+            }
+          }
+        },
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:11},color:'#7a9b7d'}},
+          y:{
+            beginAtZero:true,
+            grid:{color:'rgba(45,140,52,0.08)'},
+            ticks:{font:{size:11},color:'#7a9b7d',maxTicksLimit:5}
+          }
+        }
+      }
+    });
+  })();
 }
 
-/* ── Restore settings from localStorage ─────────────────── */
+/* ── Restore settings + Excel-Daten aus localStorage ────── */
 document.addEventListener('DOMContentLoaded',()=>{
-  const dm=localStorage.getItem('gb_darkmode');
-  const cp=localStorage.getItem('gb_compact');
-  const an=localStorage.getItem('gb_anonym');
-  const img=localStorage.getItem('gb_profilimg');
+  // Einstellungen
+  const dm=_ls.getItem('gb_darkmode');
+  const cp=_ls.getItem('gb_compact');
+  const an=_ls.getItem('gb_anonym');
+  const he=_ls.getItem('gb_hideEmail');
   if(dm==='1'){document.getElementById('settingDarkMode').checked=true;applyDarkMode(true);}
   if(cp==='1'){document.getElementById('settingCompact').checked=true;applyCompact(true);}
+  const pf=_ls.getItem('gb_perf');
+  if(pf==='1'){document.getElementById('settingPerformance').checked=true;applyPerformance(true);}
+  const pr=_ls.getItem('gb_presentation');
+  if(pr==='1'){document.getElementById('settingPresentation').checked=true;applyPresentation(true);}
+  const fc=_ls.getItem('gb_focus');
+  if(fc==='1'){document.getElementById('settingFocus').checked=true;applyFocus(true);}
+  const it=_ls.getItem('gb_infotooltips');
+  if(it==='0'){document.getElementById('settingInfoTooltips').checked=false;applyInfoTooltips(false);}
   if(an==='1'){document.getElementById('settingAnonym').checked=true;applyAnonym(true);}
-  if(img){window._profilImg=img;}
-  // Restore team image
-  const timg=localStorage.getItem('gb_teamimg');
-  if(timg){applyTeamImg(timg);}
-  // Restore motto
-  const motto=localStorage.getItem('gb_motto');
-  if(motto){document.getElementById('spMotto').textContent=motto;}
+if(he==='0'){const hec=document.getElementById('settingHideEmail');if(hec)hec.checked=false;applyHideEmail(false);}
+  else{window._hideEmail=true;}
+
+  // Gespeicherte Excel-Daten wiederherstellen
+  const savedRows=_ls.getItem('gb_excelData');
+  if(savedRows){
+    try{
+      const rows=JSON.parse(savedRows);
+      if(rows&&rows.length){
+        processData(rows);
+        const savedDate=_ls.getItem('gb_excelDate')||'';
+        const st=document.getElementById('fileStatus');
+        if(st)st.innerHTML=`<div class="validation-box"><div class="validation-header ok">✅ Daten geladen (${savedDate}) · ${rows.length} Einträge · <a href="#" onclick="clearSavedData(event)" style="color:var(--green-700);margin-left:8px;">Löschen</a></div></div>`;
+        const savedTeam=_ls.getItem('gb_selectedTeam');
+        if(savedTeam){
+          ['ownTeamSelect','ownTeamSelect2'].forEach(id=>{
+            const s=document.getElementById(id);if(s)s.value=savedTeam;
+          });
+          renderLeaderboard(window._lastDepts||[]);
+          renderTeamTab();
+        }
+      }
+    }catch(e){_ls.removeItem('gb_excelData');}
+  }
+
+  // Admin-Session wiederherstellen (bleibt bis Tab geschlossen wird)
+  if(sessionStorage.getItem('gb_admin')==='1') showAdminArea(true);
+  // Enter-Taste im Passwort-Feld
+  document.getElementById('adminPwInput')?.addEventListener('keydown',e=>{if(e.key==='Enter')checkAdminPassword();});
 });
+
+function clearSavedData(e){
+  if(e)e.preventDefault();
+  if(!confirm('Gespeicherte Excel-Daten löschen? Das Dashboard zeigt danach den leeren Zustand.'))return;
+  _ls.removeItem('gb_excelData');_ls.removeItem('gb_excelDate');_ls.removeItem('gb_selectedTeam');
+  location.reload();
+}
+
+/* ── Gewähltes Team persistieren ─────────────────────────── */
+function onTeamChange(sourceId){
+  const s1=document.getElementById('ownTeamSelect');
+  const s2=document.getElementById('ownTeamSelect2');
+  const val=sourceId==='ownTeamSelect2'?(s2?s2.value:''):(s1?s1.value:'');
+  if(s1)s1.value=val;
+  if(s2)s2.value=val;
+  if(val)_ls.setItem('gb_selectedTeam',val);
+  else _ls.removeItem('gb_selectedTeam');
+  renderLeaderboard(window._lastDepts||[]);
+  renderTeamTab();
+}
 
 /* ── Team Profilbild ─────────────────────────────────────── */
 function handleTeamImg(e){
   const file=e.target.files[0];
   if(!file)return;
+  const own=document.getElementById('ownTeamSelect')?.value;
+  if(!own){ alert('Bitte zuerst eine Abteilung auswählen.'); return; }
   const r=new FileReader();
   r.onload=ev=>{
-    localStorage.setItem('gb_teamimg',ev.target.result);
+    _teamAvatars[own]=ev.target.result;
+    _ls.setItem('gb_teamimg_'+own,ev.target.result);
     applyTeamImg(ev.target.result);
+    renderLeaderboard(window._lastDepts||[]);
+    renderPodium(window._lastDepts||[]);
   };
   r.readAsDataURL(file);
 }
 function applyTeamImg(src){
   const el=document.getElementById('teamAvatarCircle');
   if(!el)return;
-  el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  if(src){el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;}
+  else{
+    const own=document.getElementById('ownTeamSelect')?.value;
+    const d=_allDepts.find(x=>x.name===own);
+    el.innerHTML = d ? (d.name.split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'🌿') : '🌿';
+  }
 }
 
 /* ── Team Motto inline bearbeiten ────────────────────────── */
@@ -1617,10 +2011,13 @@ function startMottoEdit(){
   document.getElementById('mottoInput').focus();
 }
 function saveMottoEdit(){
+  const own=document.getElementById('ownTeamSelect')?.value;
+  if(!own){ cancelMottoEdit(); return; }
   const val=document.getElementById('mottoInput').value.trim()||'Gemeinsam für eine grünere BBBank';
   const text='„'+val+'"';
   document.getElementById('spMotto').textContent=text;
-  localStorage.setItem('gb_motto',text);
+  _teamMottos[own]=text;
+  _ls.setItem('gb_motto_'+own,text);
   cancelMottoEdit();
 }
 function cancelMottoEdit(){
@@ -1629,3 +2026,459 @@ function cancelMottoEdit(){
   const editBtn=document.querySelector('[onclick="startMottoEdit()"]');
   if(editBtn)editBtn.style.display='';
 }
+
+/* ============================================================
+   VS MODUS
+   ============================================================ */
+let _vsModeActive = false;
+
+function toggleVSMode(){
+  _vsModeActive = !_vsModeActive;
+  const btn = document.getElementById('vsToggleBtn');
+  const row = document.getElementById('vsChallengerRow');
+  const arena = document.getElementById('vsArenaWrap');
+  const profilContent = document.getElementById('profilContent');
+  if(_vsModeActive){
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> VS beenden';
+    btn.classList.add('active');
+    row.style.display='flex';
+    // Populate challenger dropdown
+    populateVSSelect();
+    profilContent.style.display='none';
+    renderVS();
+  } else {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg> VS-Modus starten';
+    btn.classList.remove('active');
+    row.style.display='none';
+    arena.style.display='none';
+    arena.innerHTML='';
+    // Restore normal profil
+    const name = document.getElementById('profilPersonSelect')?.value;
+    if(name && window._allRows?.length) profilContent.style.display='block';
+  }
+}
+
+function populateVSSelect(){
+  const mainSel = document.getElementById('profilPersonSelect');
+  const vsSel = document.getElementById('vsPersonSelect');
+  if(!vsSel||!window._allRows?.length) return;
+  const mainName = mainSel?.value||'';
+  const names = [...new Set(window._allRows.map(r=>r._name).filter(Boolean))].sort();
+  const cur = vsSel.value;
+  vsSel.innerHTML = '<option value="">– Person wählen –</option>' +
+    names.filter(n=>n!==mainName).map(n=>`<option value="${n}" ${n===cur?'selected':''}>${n}</option>`).join('');
+}
+
+function getPersonStats(name){
+  if(!name||!window._allRows) return null;
+  const rows = window._allRows.filter(r=>r._name===name);
+  if(!rows.length) return null;
+  const dept = rows[0]?._dept||'–';
+  const totalPts = rows.reduce((s,r)=>s+r._pts,0);
+  const co2 = Math.round(totalPts*0.12);
+  const commutePts = rows.reduce((s,r)=>s+(r._commutePts||0),0);
+  const homePts = rows.reduce((s,r)=>s+(r._homePts||0),0);
+  const printPts = rows.reduce((s,r)=>s+(r._printPts||0),0);
+  const travelPts = rows.reduce((s,r)=>s+(r._travelPts||0),0);
+  const socialPts = rows.reduce((s,r)=>s+(r._socialPts||0),0);
+  const weeks = new Set(rows.map(r=>r._kw).filter(Boolean)).size;
+  // Global rank
+  const globalPts={};
+  window._allRows.forEach(r=>{globalPts[r._name]=(globalPts[r._name]||0)+r._pts;});
+  const globalSorted=Object.entries(globalPts).sort((a,b)=>b[1]-a[1]);
+  const globalRank=(globalSorted.findIndex(([n])=>n===name)+1)||'–';
+  // Team rank
+  const teamPts={};
+  window._allRows.filter(r=>r._dept===dept).forEach(r=>{teamPts[r._name]=(teamPts[r._name]||0)+r._pts;});
+  const teamSorted=Object.entries(teamPts).sort((a,b)=>b[1]-a[1]);
+  const teamRank=(teamSorted.findIndex(([n])=>n===name)+1)||'–';
+  // Level
+  const lvl=[...PROFIL_LEVELS].reverse().find(l=>totalPts>=l.minPts)||PROFIL_LEVELS[0];
+  // Saved profile img
+  const savedImg=window._profilImgs?.[name]||_ls.getItem('gb_profilimg_'+name)||null;
+  return{name,dept,totalPts,co2,commutePts,homePts,printPts,travelPts,socialPts,weeks,globalRank,teamRank,lvl,savedImg,entries:rows.length};
+}
+
+function renderVS(){
+  if(!_vsModeActive) return;
+  const mainName = document.getElementById('profilPersonSelect')?.value;
+  const vsName = document.getElementById('vsPersonSelect')?.value;
+  const arena = document.getElementById('vsArenaWrap');
+  if(!arena) return;
+
+  if(!mainName || !vsName){
+    arena.style.display='block';
+    arena.innerHTML=`<div class="panel" style="margin-bottom:16px;"><div class="panel-body"><div class="empty-state" style="padding:2rem;">
+      <div class="empty-state-icon">⚔️</div>
+      <div class="empty-state-text">${!mainName?'Bitte zuerst oben eine Person wählen, dann den Herausforderer.':'Herausforderer wählen um den Vergleich zu starten.'}</div>
+    </div></div></div>`;
+    return;
+  }
+
+  const A = getPersonStats(mainName);
+  const B = getPersonStats(vsName);
+  if(!A||!B){ arena.innerHTML='<div class="empty-state"><div class="empty-state-text">Unzureichende Daten für Vergleich.</div></div>'; return; }
+
+  // Determine winner
+  const aWins = A.totalPts > B.totalPts;
+  const bWins = B.totalPts > A.totalPts;
+  const tie = A.totalPts === B.totalPts;
+
+  // Avatar HTML helper
+  const avatarHtml=(stats,colorClass)=>{
+    const init=stats.name.split(' ').map(p=>p[0]||'').join('').slice(0,2).toUpperCase()||'?';
+    const bg=colorClass==='left'?'var(--green-500)':'#6366f1';
+    const imgContent=stats.savedImg
+      ?`<img src="${stats.savedImg}" alt="">`
+      :`<span>${init}</span>`;
+    return`<div class="vs-avatar-wrap">
+      <div style="position:relative;">
+        <div class="vs-avatar-ring"></div>
+        <div class="vs-avatar" style="background:${bg}">${imgContent}</div>
+        <div class="vs-winner-crown">👑</div>
+      </div>
+    </div>`;
+  };
+
+  // Stat rows data
+  const statRows=[
+    {ico:'🏆',label:'Punkte',a:A.totalPts,b:B.totalPts,unit:''},
+    {ico:'🌍',label:'CO₂ gespart',a:A.co2,b:B.co2,unit:'kg'},
+    {ico:'📅',label:'Aktive Wochen',a:A.weeks,b:B.weeks,unit:''},
+    {ico:'🚗',label:'Mobilität',a:A.commutePts,b:B.commutePts,unit:'Pkt.'},
+    {ico:'🏠',label:'Homeoffice',a:A.homePts,b:B.homePts,unit:'Pkt.'},
+    {ico:'🖨️',label:'Drucken',a:A.printPts,b:B.printPts,unit:'Pkt.'},
+    {ico:'✈️',label:'Dienstreisen',a:A.travelPts,b:B.travelPts,unit:'Pkt.'},
+    {ico:'📝',label:'Einträge',a:A.entries,b:B.entries,unit:''},
+  ];
+
+  // Count category wins
+  let aScore=0,bScore=0,catTies=0;
+  statRows.forEach(r=>{if(r.a>r.b)aScore++;else if(r.b>r.a)bScore++;else catTies++;});
+
+  // Result banner
+  let bannerCls, bannerText;
+  if(tie){bannerCls='tie';bannerText=`🤝 Unentschieden – beide mit ${A.totalPts} Punkten`;}
+  else if(aWins){bannerCls='left-wins';bannerText=`🏆 ${A.name} gewinnt! +${A.totalPts-B.totalPts} Punkte Vorsprung`;}
+  else{bannerCls='right-wins';bannerText=`🏆 ${B.name} gewinnt! +${B.totalPts-A.totalPts} Punkte Vorsprung`;}
+
+  // Funken-Elemente für den Farben-Kampf (6 Stück, rundum verteilt)
+  const clashSparksHtml = Array.from({length:6}).map((_,i)=>
+    `<div class="vs-clash-spark" style="--ang:${i*60}deg;animation-delay:${i*0.06}s"></div>`
+  ).join('');
+
+  arena.style.display='block';
+  const maxPts=Math.max(A.totalPts,B.totalPts,1);
+  const aPct=Math.round((A.totalPts/maxPts)*100);
+  const bPct=Math.round((B.totalPts/maxPts)*100);
+
+  const statRowsHtml=statRows.map((r,idx)=>{
+    const maxV=Math.max(r.a,r.b,1);
+    // Each bar fills up to 50% of the track width (meeting in the middle)
+    // Winner bar pushes past center
+    const total=r.a+r.b||1;
+    const aPctTrack=Math.round((r.a/total)*100); // % of full track width
+    const bPctTrack=100-aPctTrack;
+    const aW=r.a>r.b, bW=r.b>r.a;
+    const winCls=aW?'win-left':bW?'win-right':'win-tie';
+    // clash point: where bars meet (percentage from left)
+    const clashLeft=aPctTrack;
+    return`<div class="vs-stat-row" data-idx="${idx}">
+      <div class="vs-stat-header">
+        <div style="text-align:right;">
+          <div class="vs-stat-val left ${aW?'winner':''}">${r.a}${r.unit?` <span style="font-size:10px;font-weight:400;color:var(--text-muted)">${r.unit}</span>`:''}</div>
+          ${aW?'<div class="vs-winner-chip green">Sieger ✓</div>':bW?'<div class="vs-winner-chip tie">–</div>':'<div class="vs-winner-chip tie">Gleich</div>'}
+        </div>
+        <div class="vs-stat-label">${r.ico} ${r.label}</div>
+        <div>
+          <div class="vs-stat-val right ${bW?'winner':''}">${r.b}${r.unit?` <span style="font-size:10px;font-weight:400;color:var(--text-muted)">${r.unit}</span>`:''}</div>
+          ${bW?'<div class="vs-winner-chip blue">Sieger ✓</div>':aW?'<div class="vs-winner-chip tie">–</div>':'<div class="vs-winner-chip tie">Gleich</div>'}
+        </div>
+      </div>
+      <div class="vs-battle-track ${winCls}"
+           data-a="${aPctTrack}" data-b="${bPctTrack}" data-clash="${clashLeft}">
+        <div class="vs-battle-left"></div>
+        <div class="vs-battle-right"></div>
+        <div class="vs-battle-clash" style="left:${clashLeft}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  arena.innerHTML=`
+    <!-- Arena Hero -->
+    <div class="vs-arena" style="margin-bottom:16px;">
+      <div class="vs-arena-inner">
+        <div class="vs-side left" data-winner="${aWins?'1':'0'}">
+          ${avatarHtml(A,'left')}
+          <div class="vs-side-name">${A.name}</div>
+          <div class="vs-side-dept">${A.dept} · ${A.lvl.icon} ${A.lvl.label}</div>
+          <div class="vs-side-pts">${A.totalPts}</div>
+          <div class="vs-side-ptsub">Punkte</div>
+          <div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.6);">Global #${A.globalRank} · ${A.co2} kg CO₂</div>
+        </div>
+        <div class="vs-divider">
+          <div class="vs-badge">VS</div>
+          <div class="vs-clash-zone fighting">
+            <div class="vs-clash-ring"></div>
+            <div class="vs-clash-ring ring2"></div>
+            <div class="vs-clash-glow"></div>
+            <div class="vs-clash-orb left"></div>
+            <div class="vs-clash-orb right"></div>
+            ${clashSparksHtml}
+          </div>
+        </div>
+        <div class="vs-side right" data-winner="${bWins?'1':'0'}">
+          ${avatarHtml(B,'right')}
+          <div class="vs-side-name">${B.name}</div>
+          <div class="vs-side-dept">${B.dept} · ${B.lvl.icon} ${B.lvl.label}</div>
+          <div class="vs-side-pts">${B.totalPts}</div>
+          <div class="vs-side-ptsub">Punkte</div>
+          <div style="margin-top:6px;font-size:11px;color:rgba(255,255,255,0.6);">Global #${B.globalRank} · ${B.co2} kg CO₂</div>
+        </div>
+      </div>
+      <div class="vs-result-banner ${bannerCls}">
+        <span class="vs-trophy">🏅</span>
+        <span>${bannerText}</span>
+      </div>
+    </div>
+
+    <!-- Score-Balken -->
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header">
+        <div class="panel-title">📊 Gesamtbewertung</div>
+        <div class="panel-badge">${aScore}:${bScore}${catTies>0?' ('+catTies+' unentsch.)':''} Kategorien</div>
+      </div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:12px;">
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--green-700);margin-bottom:4px;">${A.name}</div>
+            <div style="height:10px;background:var(--green-500);border-radius:5px 0 0 5px;width:${aPct}%;transition:width 0.9s ease;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${A.totalPts} | ${B.totalPts}</div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#4f46e5;margin-bottom:4px;text-align:right;">${B.name}</div>
+            <div style="height:10px;background:#6366f1;border-radius:0 5px 5px 0;width:${bPct}%;transition:width 0.9s ease;margin-left:auto;"></div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:12px;color:var(--text-muted);">
+          ${aWins?`<b style="color:var(--green-700)">${A.name}</b> führt mit ${A.totalPts-B.totalPts} Punkten`:
+            bWins?`<b style="color:#4f46e5">${B.name}</b> führt mit ${B.totalPts-A.totalPts} Punkten`:
+            `Beide auf gleichem Niveau! 🤝`}
+        </div>
+      </div>
+    </div>
+
+    <!-- Kategorie-Duell -->
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header">
+        <div class="panel-title">⚡ Kategorie-Duell</div>
+      </div>
+      <div class="panel-body" style="padding:0.75rem 1rem;">
+        <div class="vs-stats-grid">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 4px;margin-bottom:4px;">
+            <div style="font-size:11px;font-weight:700;color:var(--green-700);text-align:right;">${A.name}</div>
+            <div style="width:60px;"></div>
+            <div style="font-size:11px;font-weight:700;color:#4f46e5;">${B.name}</div>
+          </div>
+          ${statRowsHtml}
+        </div>
+      </div>
+    </div>
+
+    <!-- Zusammenfassung -->
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="panel-header"><div class="panel-title">🎯 Fazit</div></div>
+      <div class="panel-body">
+        <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+          ${tie
+            ?`<b>${A.name}</b> und <b>${B.name}</b> sind punktgleich bei ${A.totalPts} Punkten – ein echtes Duell auf Augenhöhe! 🤝`
+            :aWins
+              ?`<b style="color:var(--green-700)">${A.name}</b> gewinnt dieses Duell mit <b>${A.totalPts}</b> vs. <b>${B.totalPts}</b> Punkten – das sind <b>+${A.totalPts-B.totalPts} Punkte</b> Vorsprung und ${aScore} von ${statRows.length} Kategorien gewonnen.`
+              :`<b style="color:#4f46e5">${B.name}</b> gewinnt dieses Duell mit <b>${B.totalPts}</b> vs. <b>${A.totalPts}</b> Punkten – das sind <b>+${B.totalPts-A.totalPts} Punkte</b> Vorsprung und ${bScore} von ${statRows.length} Kategorien gewonnen.`
+          }
+          ${!tie?`<br><br>Um aufzuholen, müsste <b>${aWins?B.name:A.name}</b> noch <b>${Math.abs(A.totalPts-B.totalPts)} Punkte</b> sammeln.`:''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // ── Farben-Kampf: Spannung aufbauen, dann Sieger enthüllen ──
+  const clashZone = arena.querySelector('.vs-clash-zone');
+  const banner = arena.querySelector('.vs-result-banner');
+  const sideEls = arena.querySelectorAll('.vs-side');
+  const revealDelay = 1600; // ms Farben-Kampf-Dauer
+  setTimeout(()=>{
+    if(clashZone){
+      clashZone.classList.remove('fighting');
+      clashZone.classList.add(tie?'settled-tie':aWins?'settled-left':'settled-right');
+    }
+    sideEls.forEach(el=>{
+      if(el.dataset.winner==='1') el.classList.add('winner-side');
+    });
+    if(banner) banner.classList.add('revealed');
+  }, revealDelay);
+
+  // ── Battle Bar Animation ──────────────────────────────────
+  // Stagger each row: start at 0 width, then trigger fight class
+  requestAnimationFrame(()=>{
+    const tracks = arena.querySelectorAll('.vs-battle-track');
+    tracks.forEach((track, i) => {
+      const aW = parseFloat(track.dataset.a)||0;
+      const bW = parseFloat(track.dataset.b)||0;
+      const leftBar = track.querySelector('.vs-battle-left');
+      const rightBar = track.querySelector('.vs-battle-right');
+      // reset
+      if(leftBar) leftBar.style.width='0%';
+      if(rightBar) rightBar.style.width='0%';
+      // staggered fight trigger (nach dem Farben-Kampf)
+      setTimeout(()=>{
+        track.classList.add('fight');
+        if(leftBar) leftBar.style.width=aW+'%';
+        if(rightBar) rightBar.style.width=bW+'%';
+      }, revealDelay + 80 + i * 120);
+    });
+  });
+}
+
+/* ── ESG Info Popover toggle (für Touch/Click) ────────── */
+function toggleEsgInfo(e){
+  e.stopPropagation();
+  const pop=document.getElementById('esgInfoPopover');
+  if(!pop)return;
+  pop.classList.toggle('open');
+  if(pop.classList.contains('open')){
+    const close=ev=>{if(!document.getElementById('esgInfoWrap')?.contains(ev.target)){pop.classList.remove('open');document.removeEventListener('click',close);}};
+    setTimeout(()=>document.addEventListener('click',close),10);
+  }
+}
+
+/* ── Tooltip-Positionierung ──────────────────────────────── */
+(function(){
+  let activeTooltip = null;
+
+  function showTooltipFor(trigger, tooltipEl){
+    if(!tooltipEl) return;
+    tooltipEl.style.visibility = 'hidden';
+    tooltipEl.style.display    = 'block';
+    try{
+      const r  = trigger.getBoundingClientRect();
+      const tw = tooltipEl.offsetWidth  || 230;
+      const th = tooltipEl.offsetHeight || 80;
+      const margin = 8;
+      let top  = r.top - th - margin;
+      if(top < margin) top = r.bottom + margin;
+      let left = r.right - tw;
+      if(left < margin) left = margin;
+      if(left + tw > window.innerWidth - margin) left = window.innerWidth - tw - margin;
+      tooltipEl.style.top  = top  + 'px';
+      tooltipEl.style.left = left + 'px';
+    }catch(err){}
+    tooltipEl.style.visibility = 'visible';
+    activeTooltip = tooltipEl;
+  }
+
+  function hideTooltip(tooltipEl){
+    if(!tooltipEl) return;
+    tooltipEl.style.display    = 'none';
+    tooltipEl.style.visibility = 'hidden';
+    if(activeTooltip === tooltipEl) activeTooltip = null;
+  }
+
+  document.addEventListener('mouseover', function(e){
+    try{
+      const wrap = e.target.closest('.info-btn-wrap');
+      if(wrap){
+        const btn = wrap.querySelector('.info-btn');
+        const tip = wrap.querySelector('.info-btn-tooltip');
+        if(btn && tip) showTooltipFor(btn, tip);
+      }
+      const bc = e.target.closest('.bc-card');
+      if(bc){
+        const tip = bc.querySelector('.bc-tooltip');
+        if(tip) showTooltipFor(bc, tip);
+      }
+    }catch(err){}
+  }, {passive:true});
+
+  document.addEventListener('mouseout', function(e){
+    try{
+      const wrap = e.target.closest('.info-btn-wrap');
+      if(wrap && !wrap.contains(e.relatedTarget)){
+        hideTooltip(wrap.querySelector('.info-btn-tooltip'));
+      }
+      const bc = e.target.closest('.bc-card');
+      if(bc && !bc.contains(e.relatedTarget)){
+        hideTooltip(bc.querySelector('.bc-tooltip'));
+      }
+    }catch(err){}
+  }, {passive:true});
+
+  window.addEventListener('scroll', function(){
+    if(!activeTooltip) return;
+    try{
+      const wrap = activeTooltip.closest('.info-btn-wrap');
+      if(wrap){ const btn=wrap.querySelector('.info-btn'); if(btn) showTooltipFor(btn,activeTooltip); }
+      const bc = activeTooltip.closest('.bc-card');
+      if(bc) showTooltipFor(bc, activeTooltip);
+    }catch(err){}
+  }, {passive:true});
+})();
+
+/* ── Wettbewerbs-Countdown ────────────────────────────────── */
+(function(){
+  // ⚙️ HIER ANPASSEN: Start- und Enddatum des Wettbewerbs
+  // Testphase: KW 26-27 (ab 23.06.2026)
+  // Wettbewerb: KW 28-37 (07.07.2026 – 12.09.2026)
+  const CONTEST_START = new Date('2026-07-20T00:00:00');
+  const CONTEST_END   = new Date('2026-09-14T23:59:59');
+
+  function updateCountdown(){
+    const now  = new Date();
+    const banner = document.getElementById('contestBanner');
+    const title  = document.getElementById('contestTitle');
+    const sub    = document.getElementById('contestSub');
+    const cdEl   = document.getElementById('contestCountdown');
+    const wEl    = document.getElementById('cdWeeks');
+    const dEl    = document.getElementById('cdDays');
+    const hEl    = document.getElementById('cdHours');
+    if(!banner) return;
+
+    if(now < CONTEST_START){
+      // Vor dem Wettbewerb → Countdown bis Start
+      const diff = CONTEST_START - now;
+      const weeks = Math.floor(diff / (7*24*3600*1000));
+      const days  = Math.floor((diff % (7*24*3600*1000)) / (24*3600*1000));
+      const hours = Math.floor((diff % (24*3600*1000)) / 3600000);
+      if(title) title.textContent = 'nextGen fürs Klima 2026';
+      if(sub)   sub.textContent   = '⏳ Testphase läuft (22.06.–13.07.) · Wettbewerb ab 20.07.';
+      if(wEl) wEl.textContent = String(weeks).padStart(2,'0');
+      if(dEl) dEl.textContent = String(days).padStart(2,'0');
+      if(hEl) hEl.textContent = String(hours).padStart(2,'0');
+    } else if(now <= CONTEST_END){
+      // Wettbewerb läuft → Countdown bis Ende
+      const diff = CONTEST_END - now;
+      const weeks = Math.floor(diff / (7*24*3600*1000));
+      const days  = Math.floor((diff % (7*24*3600*1000)) / (24*3600*1000));
+      const hours = Math.floor((diff % (24*3600*1000)) / 3600000);
+      // Aktuelle KW im Wettbewerb
+      const elapsed = now - CONTEST_START;
+      const currentWeek = Math.min(10, Math.floor(elapsed / (7*24*3600*1000)) + 1);
+      if(title) title.textContent = 'nextGen fürs Klima 2026';
+      if(sub)   sub.textContent   = `🟢 Wettbewerb läuft · Woche ${currentWeek} von 10`;
+      if(wEl) wEl.textContent = String(weeks).padStart(2,'0');
+      if(dEl) dEl.textContent = String(days).padStart(2,'0');
+      if(hEl) hEl.textContent = String(hours).padStart(2,'0');
+    } else {
+      // Wettbewerb beendet
+      if(title) title.textContent = 'nextGen fürs Klima 2026';
+      if(sub)   sub.textContent   = '🏁 Wettbewerb beendet · Vielen Dank an alle Teilnehmenden!';
+      if(cdEl)  cdEl.innerHTML    = '<div style="font-size:24px;color:#fff;">🏆</div>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    updateCountdown();
+    setInterval(updateCountdown, 60000); // jede Minute aktualisieren
+  });
+})();
+
